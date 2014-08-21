@@ -209,8 +209,8 @@ class TaskDispatcher(SocketServer.TCPServer):
                 logger.info( "  Add entry '{j}' to JobStatus table.".format(t=str(datetime.now()), j=jobStatus ) )
                 
                 jobStatusInstance = db.JobStatus( name=jobStatus )
-                self.dbconnection.introduce( jobStatusInstance )
                 
+                self.dbconnection.introduce( jobStatusInstance )
                 self.dbconnection.commit()
         logger.info( "... done" )
 
@@ -406,13 +406,13 @@ class TaskDispatcher(SocketServer.TCPServer):
         dbconnection = hDBConnection()
         
         reachability = self.setReachabilityOfHosts( hosts=[host] )
-
+        
         if reachability[ host ]:
             # maybe it is more efficient to use query().join().update( ) but in SQLite it is currently not supported (OperationalError)
             hostSummaryInstance = dbconnection.query( db.HostSummary ).join( db.Host ).filter( db.Host.full_name==host ).one()
             hostSummaryInstance.active = True
             
-            self.dbconnection.commit()
+            dbconnection.commit()
 
         return 
 
@@ -428,7 +428,7 @@ class TaskDispatcher(SocketServer.TCPServer):
         hostSummaryInstance = dbconnection.query( db.HostSummary ).join( db.Host ).filter( db.Host.full_name==host ).one()
         hostSummaryInstance.active = False
             
-        self.dbconnection.commit()
+        dbconnection.commit()
 
         return 
         
