@@ -1,0 +1,7 @@
+[SETTINGS]
+host = xaverius
+port = 10101
+sslconnection = False
+eocstring = @@@@
+laststart = 2014-08-20 17:35:04.797649
+
