@@ -485,7 +485,7 @@ class TaskDispatcher(SocketServer.TCPServer):
 
         dbconnection.commit()
 
-
+        
     def getNextJob( self, excludedJobIDs=set([]) ):
         """! @brief get next job which will be send to cluster 
 

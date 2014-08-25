@@ -37,7 +37,9 @@ engine = sqlalchemy.create_engine( "{dialect}://{user}:{password}@{host}/{name}"
                                                                                          user=databaseUsername,
                                                                                          password=databasePassword,
                                                                                          host=databaseHost,
-                                                                                         name=databaseName), echo=False )
+                                                                                         name=databaseName), 
+                                                                                         pool_size=20, #number of connections to keep open inside the connection pool
+                                                                                         echo=False )
 
 # Create all tables in the engine. This is equivalent to "Create Table"
 # statements in raw SQL.
@@ -50,12 +52,13 @@ Base.metadata.create_all( engine )
 # Session is a regular Python class which can be directly instantiated. However, to standardize how sessions are 
 # configured and acquired, the sessionmaker class is normally used to create a top level Session configuration 
 # which can then be used throughout an application without the need to repeat the configurational arguments.
+# sessionmaker() is a Session factory. A factory is just something that produces a new object when called.
 #
-# Thread local factory for sessions. See http://docs.sqlalchemy.org/en/rel_0_9/orm/session.html#contextual-thread-local-sessions                                       
-DBSession = sqlalchemy.orm.sessionmaker( bind = engine )
-
-
-
+# Thread local factory for sessions. See http://docs.sqlalchemy.org/en/rel_0_9/orm/session.html#contextual-thread-local-sessions
+#
+print "CREATE SESSION FACTORY"
+SessionFactory = sqlalchemy.orm.sessionmaker( bind = engine )
+DBSession = sqlalchemy.orm.scoped_session( SessionFactory )
 
 
 

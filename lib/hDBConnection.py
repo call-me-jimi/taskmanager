@@ -18,7 +18,7 @@ sys.path.insert(0,libpath)
 from hDBSessionMaker import DBSession
 
 class hDBConnection( object ):
-    def __init__( self, scopedSession=None ):
+    def __init__( self ):
         ### Create an engine that stores data in the local directory's
         ### sqlalchemy_example.db file.
         ###engine = create_engine( 'sqlite:///{varpath}/taskDispatcher.db'.format(varpath=varpath), echo=False )
@@ -36,24 +36,24 @@ class hDBConnection( object ):
         ### session.commit(). If you're not happy about the changes, you can
         ### revert all of them back to the last commit by calling
         ### session.rollback()
-        ##self.session = DBSession()
+        self.session = DBSession()
 
-        ## @var ScopedSession
-        #The session that represents the connection to the database
-        if not scopedSession:
-            self.ScopedSession = scoped_session( DBSession )
-        else:
-            self.ScopedSession = scopedSession
-
-        ## @var session
-        # A ScopedSession() instance establishes all conversations with the database
-        # and represents a "staging zone" for all the objects loaded into the
-        # database session object. Any change made against the objects in the
-        # session won't be persisted into the database until you call
-        # session.commit(). If you're not happy about the changes, you can
-        # revert all of them back to the last commit by calling
-        # session.rollback()
-        self.session = self.ScopedSession()
+        ##### @var ScopedSession
+        ####The session that represents the connection to the database
+        ###if not scopedSession:
+        ###    self.ScopedSession = scoped_session( DBSession )
+        ###else:
+        ###    self.ScopedSession = scopedSession
+        ###
+        ##### @var session
+        #### A ScopedSession() instance establishes all conversations with the database
+        #### and represents a "staging zone" for all the objects loaded into the
+        #### database session object. Any change made against the objects in the
+        #### session won't be persisted into the database until you call
+        #### session.commit(). If you're not happy about the changes, you can
+        #### revert all of them back to the last commit by calling
+        #### session.rollback()
+        ###self.session = self.ScopedSession()
         
     #def __del__( self ):
     #    """! @brief Tidy up session upon destruction of the Connect object"""
