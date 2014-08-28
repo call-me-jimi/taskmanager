@@ -6,6 +6,7 @@ import socket
 import subprocess
 import re
 import ConfigParser
+import socket
 
 # get path to taskmanager. it is assumed that this file is in the bin/python directory of
 # the taskmanager package.
@@ -35,7 +36,9 @@ class hServerProxy(object):
                  verboseMode = False,
                  persistent = False):
         """! @brief Constructor
+        
         @param serverType (string) Type of server. Currently supported are TMS and TMMS.
+        
         """
         self.user = user
         self.serverType = serverType
@@ -61,6 +64,9 @@ class hServerProxy(object):
         else:
             print "ERROR: config file {f} could not be found".format( f="%s/serversettings.cfg" % etcPath )
 
+        # python executable (to start server)
+        self.python = defaultConfig.get( 'SYSTEM', 'python' )
+        
         useSSLConnection = defaultConfig.getboolean( 'CONNECTION', 'sslConnection' )
         EOCString = defaultConfig.get( 'CONNECTION', 'EOCString' )
         
@@ -89,7 +95,7 @@ class hServerProxy(object):
 
 
     def run(self):
-        """ check if there is a server running on stored port. if not try to invoke one."""
+        """! @brief check if there is a server running on stored port. if not try to invoke one."""
         status = None
         cnt = 0
 
@@ -120,11 +126,12 @@ class hServerProxy(object):
                 self.port += 1
             elif connStatus == 3:
                 # Server is not running
-                newHost = os.uname()[1]
-
-                # store new host
-                if newHost != self.host:
-                    self.host = newHost
+                ##newHost = os.uname()[1]
+                ##
+                ### store new host
+                ##if newHost != self.host:
+                ##    self.host = newHost
+                pass
 
             # try to start a new Server on port in case of status 2 or 3
             if self.verboseMode:
@@ -207,9 +214,11 @@ class hServerProxy(object):
             elif self.serverType=='TMMS':
                 run = 'hRunTMMS.py'
             
-            com = "python {binpath}/python/{run} -p {port}".format( run = run,
-                                                                    binpath = binPath,
-                                                                    port = self.port)
+            com = "ssh -x -a {host} {python} {binpath}/python/{run} -p {port}".format( python = self.python,
+                                                                                       host = self.host,
+                                                                                       run = run,
+                                                                                       binpath = binPath,
+                                                                                       port = self.port)
 
             if self.verboseMode:
                 print "[%s] [%s. attempt] ... command: %s" % (self.pid,cnt,com)
@@ -251,16 +260,20 @@ class hServerProxy(object):
             print "... send request: %s" % command
 
         if createNewSocket:
-            self.clientSock = hSocket(host=self.host,
-                                      port=self.port,
-                                      EOCString=self.EOCString,
-                                      sslConnection=self.sslConnection,
-                                      certfile=self.certfile,
-                                      keyfile=self.keyfile,
-                                      ca_certs=self.ca_certs,
-                                      catchErrors=False)
+            try:
+                self.clientSock = hSocket(host=self.host,
+                                          port=self.port,
+                                          EOCString=self.EOCString,
+                                          sslConnection=self.sslConnection,
+                                          certfile=self.certfile,
+                                          keyfile=self.keyfile,
+                                          ca_certs=self.ca_certs,
+                                          catchErrors=False)
+            except socket.error, msg:
+                return msg
 
         self.clientSock.send(command)
+        return True
 
     def recv(self):
         recv = self.clientSock.recv()

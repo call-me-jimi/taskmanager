@@ -96,4 +96,9 @@ class hDBConnection( object ):
         """
         return self.session.commit()
 
- 
+    def remove( self ):
+        """! @brief tell registry to dispose of session
+        """
+        
+        DBSession.remove()
+        

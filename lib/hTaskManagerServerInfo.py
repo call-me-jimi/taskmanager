@@ -3,13 +3,15 @@ import ConfigParser
 import traceback
 import sys
 
+homedir = os.environ['HOME']
+BASEDIR =  "{home}/.taskmanager".format(home=homedir)
+
 class hTaskManagerServerInfo(object):
     """! @brief Info about running TaskManagerServer"""
     def __init__(self):
-        homedir = os.environ['HOME']
 
         # read host and port of running or last TMS
-        self.configFile = "{home}/.taskmanager/tms.info".format(home=homedir)
+        self.configFile = "{basedir}/tms.info".format(basedir=BASEDIR)
 
         self.tmsInfo = {}
         
@@ -41,6 +43,10 @@ class hTaskManagerServerInfo(object):
 
         @param settings (dict) Settings
         """
+        # create .taskmanager directory
+        if not os.path.exists( BASEDIR ):
+            os.mkdir( BASEDIR )
+        
         # write host and port to file <varpath>/taskdispatcher.info
         cfg = ConfigParser.SafeConfigParser()
 

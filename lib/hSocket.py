@@ -121,7 +121,6 @@ class hSocket:
                         break
 
                     self.receivedStr += s
-                    print "received str",self.receivedStr
             else:
                 self.receivedStr = self.socket.recv(2048)
 

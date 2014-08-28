@@ -26,7 +26,7 @@ class User( Base ):
     id = Column( Integer, primary_key=True )
     name = Column( String(100) )
     tms_host = Column( String(100) )
-    tms_port = Column( Integer(5) )
+    tms_port = Column( Integer )
     tms_id = Column( String(100) )
     
     roles = relationship("AssociationUserRole", backref="user")
@@ -54,6 +54,7 @@ class JobStatus( Base ):
 
 ## @brief Job
 #
+# backrefs: job_history --> JobHistory
 class Job( Base ):
     __tablename__ = 'job'
 
@@ -88,36 +89,12 @@ class JobDetails( Base ):
     job_id = Column( Integer, ForeignKey('job.id') )
     job_status_id = Column( Integer, ForeignKey('job_status.id') )
     host_id = Column( Integer, ForeignKey('host.id') )
-    pid = Column( Integer(3) )
-    return_code = Column( Integer(2) )
+    pid = Column( Integer )
+    return_code = Column( Integer )
 
     job_status = relationship( 'JobStatus', uselist=False )
     host = relationship( 'Host' )
 
-
-    
-##class JobDetails( Base ):
-##    __tablename__ = 'job_details'
-##
-##    id = Column( Integer, primary_key=True )
-##
-##    host = Column( String(100) )
-##    pid = Column( Integer )
-##    return_code = Column( Integer(100) )
-##    
-##    
-##        
-#### @brief current job status
-###
-##class CurrentJobStatus( Base ):
-##    __tablename__ = 'current_job_status'
-##
-##    id = Column( Integer, primary_key=True )
-##    job_id = Column( Integer, ForeignKey('job.id') )
-##    job_status_type_id = Column( Integer, ForeignKey('job_status_type.id') )
-##
-##    job = relationship( Job )
-##    job_status_type = relationship( JobStatusType, uselist=False, backref="current_job_status" )
 
     
 class JobHistory( Base ):
@@ -129,7 +106,7 @@ class JobHistory( Base ):
     datetime = Column( DateTime, default = datetime.datetime.now )
     job_status_id = Column( Integer, ForeignKey( 'job_status.id' ) )
     
-    job = relationship( 'Job' )
+    job = relationship( 'Job', backref="job_history" )
     job_status = relationship( 'JobStatus' )
                      
 
@@ -160,9 +137,6 @@ class Host( Base ):
     allow_info_server = Column( Boolean )
     info_server_port = Column( Integer )
     
-    ##    cluster_id = Column( Integer, ForeignKey( 'cluster.id' ) )
-    ##cluster = relationship( Cluster, backref="hosts" )
-
     
 class HostSummary( Base ):
     __tablename__ = 'host_summary'
@@ -176,7 +150,7 @@ class HostSummary( Base ):
     active = Column( Boolean, default=False )     # whether host is included in cluster
     number_occupied_slots = Column( Integer, default=0 )
 
-    host = relationship( 'Host', uselist=False, backref="host_summary" )
+    host = relationship( 'Host', backref=backref("host_summary",uselist=False) )
 
     
 class HostLoad( Base ):

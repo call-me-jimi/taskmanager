@@ -22,9 +22,9 @@ import threading
 import argparse
 import textwrap
 from pprint import pprint
-from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import and_, not_, func
 from operator import itemgetter, attrgetter
+from sqlalchemy.orm.exc import NoResultFound
 
 # logging
 import logging
@@ -109,7 +109,7 @@ class TaskDispatcher(SocketServer.TCPServer):
         self.initDatabaseIDs()
 
         # set interval for loop of calling loop functions
-        self.loopInterval = 100
+        self.loopInterval = 5
 
         # set of ids of jobs which are processed currently
         self.lockedJobs = set()
@@ -120,7 +120,10 @@ class TaskDispatcher(SocketServer.TCPServer):
                                                                                     h=self.host,
                                                                                     p=self.port )
         print
-                
+
+        # activity status of cluster
+        self.active = False
+        
         self.printStatus()
 
         
@@ -392,7 +395,7 @@ class TaskDispatcher(SocketServer.TCPServer):
                  reachability[ p.host ] = False
                  
         dbconnection.commit()
-
+        
         return reachability
 
         
@@ -445,7 +448,11 @@ class TaskDispatcher(SocketServer.TCPServer):
         
         if not hosts:
             # get all hosts given in database
-            hosts = dbconnection.query( db.Host ).all()
+            hosts = dbconnection.query( db.Host ).\
+                    join( db.HostSummary ). \
+                    filter( and_(db.HostSummary.available==True,
+                                 db.HostSummary.reachable==True ) ).all()
+                                 
 
         hostsDict = { h.full_name: h for h in hosts }
         
@@ -466,8 +473,8 @@ class TaskDispatcher(SocketServer.TCPServer):
              host = hostsDict[ p.host ]
              
              # get all HostLoad instances attached to Host
-             hostLoads = dbconnection.query( db.HostLoad ).join( db.Host ).order_by( db.HostLoad.datetime ).all()
-             
+             hostLoads = dbconnection.query( db.HostLoad ).join( db.Host ).filter( db.Host.id==host.id ).order_by( db.HostLoad.datetime ).all()
+
              # check whether there is a no newer entry
              if len(hostLoads)==0 or hostLoads[-1].datetime<datetime.now():
                  # store only the last 5 load information
@@ -589,10 +596,10 @@ class TaskDispatcher(SocketServer.TCPServer):
         if not counts:
             # no jobs so far in the database
             counts = {}
-        
+
         slotInfo = dbconnection.query( func.count('*'),
                                        func.sum( db.Host.max_number_occupied_slots ), 
-                                       func.sum( db.HostSummary.number_occupied_slots ) ).filter( db.HostSummary.active==True ).one()
+                                       func.sum( db.HostSummary.number_occupied_slots ) ).select_from( db.Host ).join( db.HostSummary, db.HostSummary.host_id==db.Host.id ).filter( db.HostSummary.active==True ).one()
 
         if slotInfo[0]==0:
             slotInfo = (0, 0, 0)
@@ -601,6 +608,7 @@ class TaskDispatcher(SocketServer.TCPServer):
         #print "[{t}] Status of TaskDispatcher on {h}:{p}".format(t=str(datetime.now()), h=self.host, p=self.port)
         logger.info( "Status of TaskDispatcher on {h}:{p}".format(t=str(datetime.now()), h=self.host, p=self.port) )
         print
+        print "{s:>20} : {value}".format(s="active cluster", value=self.active )
         print "{s:>20} : {value}".format(s="active hosts", value=slotInfo[0] )
         print "{s:>20} : {value}".format(s="occupied slots", value="{occupied} / {total}".format(occupied=slotInfo[2],total=slotInfo[1]) )
         print "{s:>20} : {value}".format(s="waiting jobs", value=counts.get('waiting',0) )
@@ -609,6 +617,7 @@ class TaskDispatcher(SocketServer.TCPServer):
         print "{s:>20} : {value}".format(s="finished jobs", value=counts.get('finished',0) )
         print "----------------------------"
 
+        dbconnection.remove()
         
 # The RequestHandler handles an incoming request.
 class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
@@ -654,86 +663,89 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
         Check database if there are waiting jobs, check user, find vacant host, and send job to associated tms of user.
         """
         
-        dbconnection = hDBConnection()
+        if self.TD.active:
+            # get next job, find vacant host and send job
+            
+            dbconnection = hDBConnection()
         
-        print "----------------------------"
-
-        t1 = datetime.now()
-        
-        logger.info( "get next job to be executed ..." )
-                     
-        # get next job to be ready to be sent to associate tms
-        jobID = self.TD.getNextJob( excludedJobIDs=self.TD.lockedJobs )
-
-        if jobID:
-            # add job to locked jobs, i.e., they are currently processed
-            self.TD.lockedJobs.add( jobID )
+            print "----------------------------"
             
-            # get Job instance
-            job = dbconnection.query( db.Job ).get( jobID )
-            user = job.user
+            t1 = datetime.now()
 
-            logger.info( "... found job {i} of user {u}".format( i=jobID, u=user.name ) )
-            
-            # get excluded hosts
-            excludedHosts = json.loads( job.excluded_hosts )
-            
-            # get vacant host which has the necessary number of free slots
-            vacantHost = self.TD.getVacantHost( job.slots, excludedHosts=set( excludedHosts) )
+            logger.info( "get next job to be executed ..." )
 
-            if vacantHost:
-                logger.info( "run job {j} of user {u} on {h}".format(j=jobID, u=user.name, h=vacantHost[1] ) )
+            # get next job to be ready to be sent to associate tms
+            jobID = self.TD.getNextJob( excludedJobIDs=self.TD.lockedJobs )
 
-                try:
-                    # send jobID to tms
-                    sock = hSocket(host=user.tms_host,
-                                   port=user.tms_port,
-                                   EOCString=self.TD.EOCString,
-                                   sslConnection=self.TD.sslConnection,
-                                   certfile=certfile,
-                                   keyfile=keyfile,
-                                   ca_certs=ca_certs,
-                                   catchErrors=False)
+            if jobID:
+                # add job to locked jobs, i.e., they are currently processed
+                self.TD.lockedJobs.add( jobID )
 
-                    if sock:
-                        # set job as pending
-                        dbconnection.query( db.JobDetails.job_id ).\
-                          filter( db.JobDetails.job_id==jobID ).\
-                          update( {db.JobDetails.job_status_id: self.TD.databaseIDs['pending']} )
+                # get Job instance
+                job = dbconnection.query( db.Job ).get( jobID )
+                user = job.user
+
+                logger.info( "... found job {i} of user {u}".format( i=jobID, u=user.name ) )
+
+                # get excluded hosts
+                excludedHosts = json.loads( job.excluded_hosts )
+
+                # get vacant host which has the necessary number of free slots
+                vacantHost = self.TD.getVacantHost( job.slots, excludedHosts=set( excludedHosts) )
+
+                if vacantHost:
+                    logger.info( "run job {j} of user {u} on {h}".format(j=jobID, u=user.name, h=vacantHost[1] ) )
+
+                    try:
+                        # send jobID to tms
+                        sock = hSocket(host=user.tms_host,
+                                       port=user.tms_port,
+                                       EOCString=self.TD.EOCString,
+                                       sslConnection=self.TD.sslConnection,
+                                       certfile=certfile,
+                                       keyfile=keyfile,
+                                       ca_certs=ca_certs,
+                                       catchErrors=False)
+
+                        if sock:
+                            # set job as pending
+                            dbconnection.query( db.JobDetails.job_id ).\
+                              filter( db.JobDetails.job_id==jobID ).\
+                              update( {db.JobDetails.job_status_id: self.TD.databaseIDs['pending']} )
 
 
-                        # reduce slots in host
-                        dbconnection.query( db.HostSummary ).\
-                          filter( db.HostSummary.host_id==vacantHost[0] ).\
-                          update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots+job.slots })
+                            # reduce slots in host
+                            dbconnection.query( db.HostSummary ).\
+                              filter( db.HostSummary.host_id==vacantHost[0] ).\
+                              update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots+job.slots })
 
-                        # set history
-                        jobHistory = db.JobHistory( job=job,
-                                                    job_status_id = self.TD.databaseIDs['pending'] )
-                        
-                        dbconnection.introduce( jobHistory )
-                        
-                        dbconnection.commit()
+                            # set history
+                            jobHistory = db.JobHistory( job=job,
+                                                        job_status_id = self.TD.databaseIDs['pending'] )
 
-                        # set job to tms
-                        jsonObj = json.dumps( { 'jobID': jobID,
-                                                'hostID': vacantHost[0],
-                                                'hostName': vacantHost[1] })
-                        sock.send( 'runjob:{j}'.format( j=jsonObj ) )
+                            dbconnection.introduce( jobHistory )
 
-                except socket.error,msg:
-                    logger.info( "... failed [{h}:{p}]: {m}".format(h=user.tms_host, p=user.tms_port, m=msg) )
+                            dbconnection.commit()
 
-            # remove job from locked ids
-            self.TD.lockedJobs.remove( jobID )
+                            # set job to tms
+                            jsonObj = json.dumps( { 'jobID': jobID,
+                                                    'hostID': vacantHost[0],
+                                                    'hostName': vacantHost[1] })
+                            sock.send( 'runjob:{j}'.format( j=jsonObj ) )
 
-                    
-                
-        else:
-            logger.info( '... no job.' )
+                    except socket.error,msg:
+                        logger.info( "... failed [{h}:{p}]: {m}".format(h=user.tms_host, p=user.tms_port, m=msg) )
 
-        t2 = datetime.now()
-        logger.info( "... done in {dt}s.".format(dt=str(t2-t1) ) )
+                # remove job from locked ids
+                self.TD.lockedJobs.remove( jobID )
+
+
+
+            else:
+                logger.info( '... no job.' )
+
+            t2 = datetime.now()
+            logger.info( "... done in {dt}s.".format(dt=str(t2-t1) ) )
         
         self.TD.printStatus()
         
@@ -757,6 +769,15 @@ class TaskDispatcherRequestProcessor(object):
         self.commands["HELP"] = hCommand( command_name = "help",
                                           regExp = "^help$",
                                           help = "return help")
+        self.commands["ACTIVATECLUSTER"] = hCommand( command_name = "activatecluster",
+                                                     regExp = "^activatecluster$",
+                                                     help = "activate cluster")
+        self.commands["DEACTIVATECLUSTER"] = hCommand( command_name = "deactivatecluster",
+                                                       regExp = "^deactivatecluster$",
+                                                       help = "deactivate cluster")
+        self.commands["LSCLUSTER"] = hCommand( command_name = "lscluster",
+                                                       regExp = "^lscluster$",
+                                                       help = "show cluster details")
         self.commands["FULLHELP"] = hCommand( command_name = "fullhelp",
                                               regExp = "^fullhelp$",
                                               help = "return full help")
@@ -836,6 +857,42 @@ class TaskDispatcherRequestProcessor(object):
             help.extend( renderHelp( sorted(self.commands.keys()), self.commands ) )
             request.send( '\n'.join( help ) )
             
+        elif self.commands["ACTIVATECLUSTER"].re.match( requestStr ):
+            # set active status to True
+            TD.active = True
+
+        elif self.commands["DEACTIVATECLUSTER"].re.match( requestStr ):
+            # set active status to False
+            TD.active = False
+
+        elif self.commands["LSCLUSTER"].re.match( requestStr ):
+            # show cluster
+            hosts = dbconnection.query( db.Host ).all()
+
+            response = "cluster is {s}\n".format( s='active' if TD.active else 'not active' )
+            response += "------------------------\n"
+            
+            for idx,host in enumerate(hosts):
+                try:
+                    load = host.host_load[-1].loadavg_1min
+                except:
+                    load = 'n.a.'
+
+                print "host.host_summary.active",host.host_summary
+                hostInfo = { 'i': idx,
+                             'name': host.short_name,
+                             'status': 'active' if host.host_summary.active else 'reachable' if host.host_summary.reachable else 'available' if host.host_summary.available else 'not available',
+                             'occupiedSlots': host.host_summary.number_occupied_slots,
+                             'maxSlots': host.max_number_occupied_slots,
+                             'load': load
+                             }
+                response += "{i} - [name:{name}] [status:{status}] [slots:{occupiedSlots}/{maxSlots}] [load:{load}]\n".format( **hostInfo )
+
+            if response:
+                request.send( response )
+            else:
+                request.send( "no hosts in cluster." )
+                
         elif self.commands["UPDATELOAD"].re.match( requestStr ):
             # update load of hosts
             TD.updateLoadOfHosts()
@@ -947,6 +1004,7 @@ class TaskDispatcherRequestProcessor(object):
                              command=command,
                              slots=int(slots),
                              info_text=infoText,
+                             group=group,
                              shell=shell,
                              stdout=stdout,
                              stderr=stderr,

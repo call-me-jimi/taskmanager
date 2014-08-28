@@ -154,13 +154,19 @@ class TaskManagerMenialServer(SocketServer.ThreadingMixIn, SocketServer.TCPServe
         self.logFileTMMS = logFileTMMS
 
         # db connection
-        self.dbconnection = hDBConnection()
+        dbconnection = hDBConnection()
 
         # get database id of host
-        self.hostID=self.dbconnection.query( db.Host.id ).filter( db.Host.full_name==self.host ).one()[0]
+        try:
+            self.hostID=dbconnection.query( db.Host.id ).filter( db.Host.full_name==self.host ).one()[0]
+        except:
+            sys.stderr.write( "Host is not known by TaskManager!" )
+            sys.exit(-1)
 
         # save database ids of some entries in self.databaseIDs
-        self.databaseIDs = dict( self.dbconnection.query( db.JobStatus.name, db.JobStatus.id ).all() )
+        self.databaseIDs = dict( dbconnection.query( db.JobStatus.name, db.JobStatus.id ).all() )
+
+        dbconnection.remove()
         
         # start the server
         SocketServer.TCPServer.__init__(self,(self.host,self.port), handler)
@@ -303,7 +309,6 @@ class TaskManagerMenialServerProcessor:
         receivedStr = s
 
         #dbconnection = hDBConnection( TMMS.dbconnection.ScopedSession )
-        dbconnection = hDBConnection()
         
         self.outputMsg('[%s] IN: %s' % (threadName,s),TMMS)
 
@@ -390,7 +395,11 @@ class TaskManagerMenialServerProcessor:
             ##command = jsonInObj['command']
             ##logFile = jsonInObj.get('logFile',None)
             ##shell = jsonInObj['shell']
-            
+
+            # connect to database
+            dbconnection = hDBConnection()
+
+            # get job instance
             job = dbconnection.query( db.Job ).get( jobID )
 
             command = job.command
@@ -435,6 +444,7 @@ class TaskManagerMenialServerProcessor:
             
             dbconnection.introduce( jobHistory )
             dbconnection.commit()
+            dbconnection.remove()
             
             ##jsonOutObj = {'jobID': jobID,
             ##              'pid': sp.pid,
@@ -475,49 +485,57 @@ class TaskManagerMenialServerProcessor:
             if logFile:
                 f = open('%s' % logFile,'w')
 
-                f.write("--------------------\n")
-                f.write("-----command--------\n")
-                f.write("--------------------\n")
+                f.write("-----------------------\n")
+                f.write("--------command--------\n")
+                f.write("-----------------------\n")
                 f.write("%s\n" %command)
                 f.write("\n")
-                f.write("--------------------\n")
-                f.write("-----info--------\n")
-                f.write("--------------------\n")
+                f.write("-----------------------\n")
+                f.write("----------info---------\n")
+                f.write("-----------------------\n")
                 f.write("host: {0}\n".format(os.uname()[1]))
                 f.write("started: %s\n" % (startTime))
                 f.write("finished: %s\n" % (endTime))
                 f.write("\n")
 
-                f.write("----------------------\n")
-                f.write("-----BEGIN stdout-----\n")
-                f.write("----------------------\n")
+                f.write("-----------------------\n")
+                f.write("------BEGIN stdout-----\n")
+                f.write("-----------------------\n")
 
                 fOut.seek(0)
 
                 for line in fOut:
                     f.write("%s" % line)
 
-                f.write("----------------------\n")
-                f.write("-----END stdout-------\n")
-                f.write("----------------------\n")
+                f.write("-----------------------\n")
+                f.write("------END stdout-------\n")
+                f.write("-----------------------\n")
+                
                 f.write("\n")
-                f.write("----------------------\n")
-                f.write("-----BEGIN stderr-----\n")
-                f.write("----------------------\n")
+                
+                f.write("-----------------------\n")
+                f.write("------BEGIN stderr-----\n")
+                f.write("-----------------------\n")
 
                 fErr.seek(0)
                 for line in fErr:
                     f.write("%s" % line)
 
-                f.write("----------------------\n")
-                f.write("-----END stderr-------\n")
-                f.write("----------------------\n")
+                f.write("-----------------------\n")
+                f.write("------END stderr-------\n")
+                f.write("-----------------------\n")
 
                 f.close()
 
             fOut.close()
             fErr.close()
 
+            # connect to database
+            dbconnection = hDBConnection()
+
+            # get job instance (again, since we use here another connection)
+            job = dbconnection.query( db.Job ).get( jobID )
+            
             # set job as finished
             dbconnection.query( db.JobDetails.job_id ).\
               filter( db.JobDetails.job_id==jobID ).\
@@ -531,6 +549,7 @@ class TaskManagerMenialServerProcessor:
             
             dbconnection.introduce( jobHistory )
             dbconnection.commit()
+            dbconnection.remove()
             
             try:
                 clientSock = hSocket(host=TMMS.tmsHost,

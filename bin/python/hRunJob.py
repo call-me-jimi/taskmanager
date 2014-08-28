@@ -97,9 +97,9 @@ if __name__ == '__main__':
                        default = "0",
                        help = "Set priority of job. 1. Only two priorities are supported: 0 for no priority and non-zero for highest priority.")
     parser.add_argument("-q", "--quiet",
-                       action="store_false",
+                       action="store_true",
                        dest="quiet",
-                       default=True,
+                       default=False,
                        help="Do not print any status messages to stdout.")
     parser.add_argument("-s", "--status",
                        action="store_true",
@@ -364,7 +364,8 @@ if __name__ == '__main__':
                 
             else: 
                 ## usual request to TMS
-                print recv
+                if not args.quiet:
+                    print recv
                 
                 pass
 

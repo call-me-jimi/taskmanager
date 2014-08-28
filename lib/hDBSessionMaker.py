@@ -23,20 +23,22 @@ else:
     sys.exit( -1 )
 
 databaseDialect = config.get( 'DATABASE', 'database_dialect' )
+databaseHost = config.get( 'DATABASE', 'database_host' )
+databasePort = config.get( 'DATABASE', 'database_port' )
 databaseName = config.get( 'DATABASE', 'database_name' )
 databaseUsername = config.get( 'DATABASE', 'database_username' )
 databasePassword = config.get( 'DATABASE', 'database_password' )
-databaseHost = config.get( 'DATABASE', 'database_host' )
 
 
 
 ## @var engine                                                                                                                                               
 #The engine that is connected to the database                                                                                                                         
 #use "echo=True" for SQL printing statements to stdout                                                                                                                
-engine = sqlalchemy.create_engine( "{dialect}://{user}:{password}@{host}/{name}".format( dialect=databaseDialect,
+engine = sqlalchemy.create_engine( "{dialect}://{user}:{password}@{host}:{port}/{name}".format( dialect=databaseDialect,
                                                                                          user=databaseUsername,
                                                                                          password=databasePassword,
                                                                                          host=databaseHost,
+                                                                                         port=databasePort,
                                                                                          name=databaseName), 
                                                                                          pool_size=20, #number of connections to keep open inside the connection pool
                                                                                          echo=False )
@@ -56,7 +58,6 @@ Base.metadata.create_all( engine )
 #
 # Thread local factory for sessions. See http://docs.sqlalchemy.org/en/rel_0_9/orm/session.html#contextual-thread-local-sessions
 #
-print "CREATE SESSION FACTORY"
 SessionFactory = sqlalchemy.orm.sessionmaker( bind = engine )
 DBSession = sqlalchemy.orm.scoped_session( SessionFactory )
 

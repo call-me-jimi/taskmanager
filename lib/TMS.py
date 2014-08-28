@@ -43,6 +43,7 @@ import exceptions
 import json
 import textwrap
 from sqlalchemy import and_, not_, func
+from sqlalchemy.orm.exc import NoResultFound
 
 homedir = os.environ['HOME']
 user = pwd.getpwuid(os.getuid())[0]
@@ -72,7 +73,7 @@ from daemon import Daemon
 from hCommand import hCommand
 from hDBConnection import hDBConnection
 from hServerProxy import hServerProxy
-import hDatabase as db #import Job, JobDetails, JobStatus, User, JobHistory
+import hDatabase as db
 
 #history = hJobHistory(100000)
 
@@ -458,14 +459,20 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         self.processor = processor
 
         # connect to database
-        self.dbconnection = hDBConnection()
+        dbconnection = hDBConnection()
 
         # register user
         try:
-            self.userID = self.dbconnection.query( db.User.id ).filter( db.User.name==self.user ).one()[0]
-        except NoResultsFound:
+            self.userID = dbconnection.query( db.User.id ).filter( db.User.name==self.user ).one()[0]
+        except NoResultFound:
             sys.stderr.write( "Your are not allowed to use the TaskManager. Please contact your system administrator." )
             sys.exit( -1 )
+
+        # save database ids of some entries in self.databaseIDs
+        self.databaseIDs = {}
+        self.initDatabaseIDs( dbconnection )
+
+        dbconnection.remove()
         
         self.Lock = threading.Lock()
 
@@ -492,8 +499,8 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         #### jobsIDs of finished jobs: jobs which has been finished
         ##self.finishedJobs = []
 
-        self.persistent=persistent		# do not shutdown TMS
-        self.shutdownImmediatly = False	# shutdown server anyway
+        self.persistent=persistent		# if True, do not shutdown TMS
+        self.shutdownImmediatly = False		# if True, shutdown server anyway
 
         self.verboseMode = verboseMode
         self.logFileTMS = logFileTMS
@@ -623,6 +630,14 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         @param user user name"""
         self.info['user']=user
 
+    def initDatabaseIDs( self, dbcon ):
+        """! @brief save some database ids in self.databaseIDs
+
+        @param dbcon (hDBConnection) database connection
+        """
+
+        self.databaseIDs = dict( dbcon.query( db.JobStatus.name, db.JobStatus.id ).all() )
+        
     def printStatus(self):
         """!@brief print status of server to stdout"""
 
@@ -643,7 +658,7 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         
         slotInfo = dbconnection.query( func.count('*'),
                                        func.sum( db.Host.max_number_occupied_slots ), 
-                                       func.sum( db.HostSummary.number_occupied_slots ) ).filter( db.HostSummary.active==True ).one()
+                                       func.sum( db.HostSummary.number_occupied_slots ) ).select_from( db.Host ).join( db.HostSummary, db.HostSummary.host_id==db.Host.id ).filter( db.HostSummary.active==True ).one()
 
         if slotInfo[0]==0:
             slotInfo = (0, 0, 0)
@@ -659,7 +674,7 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         print "{s:>20} : {value}".format(s="finished jobs", value=counts.get('finished',0) )
         print "----------------------------"
 
-        
+        dbconnection.remove()
 
     ##def setJobAs(self,jobID,newStatus):
     ##    """!
@@ -830,7 +845,8 @@ class TaskManagerServerHandler(SocketServer.BaseRequestHandler):
         elif self.TMS.shutdownImmediatly:
             logger.info("server shutdown ...")
             self.TMS.shutdown()
-        elif not self.TMS.persistent and self.TMS.waitingJobs==[] and self.TMS.pendingJobs==[] and self.TMS.runningJobs==[]:
+        #elif not self.TMS.persistent and self.TMS.waitingJobs==[] and self.TMS.pendingJobs==[] and self.TMS.runningJobs==[]:
+        elif not self.TMS.persistent:
             logger.info("last thread (%s) has been deleted" % threading.currentThread().getName())
             logger.info("server shutdown ...")
 
@@ -950,6 +966,8 @@ class TaskManagerServerProcessor(object):
                                                    regExp = '^unsetpersistent$',
                                                    help = "unset socket connection persistent, i.e. do not close socket")
         
+
+
 
         self.commands["GETTMSINFO"] = hCommand(command_name = 'gettmsinfo',
                                               regExp = '^gettmsinfo$',
@@ -1271,42 +1289,103 @@ class TaskManagerServerProcessor(object):
 
         #  get waiting jobs
         elif self.commands["LSWJOBS"].re.match(receivedStr):
-            wJobs = self.TMS.waitingJobs
+            # connect to database
+            dbconnection = hDBConnection()
             
-            if wJobs:
-                jobs = self.formatJobOutput(wJobs)
-                request.send(jobs)
+            wJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( and_(db.Job.user_id==self.TMS.userID,
+                                                                                    db.JobDetails.job_status_id==self.TMS.databaseIDs['waiting'] ) ).all()
+
+            response = ""
+            for idx,job in enumerate(wJobs):
+                response += "{i} - [jobid:{id}] [status:waiting since {t}] [group:{group}] [info:{info}] [command:{command}{dots}]\n".format( i=idx,
+                                                                                                                                              id=job.id,
+                                                                                                                                              t=str(job.job_history[-1].datetime),
+                                                                                                                                              group=job.group,
+                                                                                                                                              info=job.info_text,
+                                                                                                                                              command=job.command[:30],
+                                                                                                                                              dots="..." if len(job.command)>30 else "" )
+
+            if response:
+                request.send( response )
             else:
                 request.send("no waiting jobs")
 
+            dbconnection.remove()
+
         #  get pending jobs
         elif self.commands["LSPJOBS"].re.match(receivedStr):
-            pJobs = self.TMS.pendingJobs
-            if pJobs:
-                jobs = self.formatJobOutput(pJobs)
-                request.send(jobs)
+            # connect to database
+            dbconnection = hDBConnection()
+            
+            pJobs = dbconnection.query( db.Job,db.JobDetails ).join( db.JobDetails ).filter( and_(db.Job.user_id==self.TMS.userID,
+                                                                                                 db.JobDetails.job_status_id==self.TMS.databaseIDs['pending'] ) ).all()
+
+            response = ""
+            for idx,(job,jobDetails) in enumerate(pJobs):
+                response += "{i} - [jobid:{id}] [status:pending on {host} since {t}] [group:{group}] [info:{info}] [command:{command}{dots}]\n".format( i=idx,
+                                                                                                                                                        id=job.id,
+                                                                                                                                                        host=jobDetails.host.short_name,
+                                                                                                                                                        t=str(job.job_history[-1].datetime),
+                                                                                                                                                        group=job.group,
+                                                                                                                                                        info=job.info_text,
+                                                                                                                                                        command=job.command[:30],
+                                                                                                                                                        dots="..." if len(job.command)>30 else "" )
+            if response:
+                request.send( response )
             else:
                 request.send("no pending jobs")
 
+            dbconnection.remove()
+
+
         #  get running jobs
         elif self.commands["LSRJOBS"].re.match(receivedStr):
-            rJobs = self.TMS.runningJobs
+            # connect to database
+            dbconnection = hDBConnection()
+            
+            pJobs = dbconnection.query( db.Job, db.JobDetails ).join( db.JobDetails ).filter( and_(db.Job.user_id==self.TMS.userID,
+                                                                                                 db.JobDetails.job_status_id==self.TMS.databaseIDs['running'] ) ).all()
 
-            if rJobs:
-                jobs = self.formatJobOutput(rJobs)
-                request.send(jobs)
+            response = ""
+            for idx,(job,jobDetails) in enumerate(pJobs):
+                response += "{i} - [jobid:{id}] [status:running on {host} since {t}] [group:{group}] [info:{info}] [command:{command}{dots}]\n".format( i=idx,
+                                                                                                                                                        id=job.id,
+                                                                                                                                                        host=jobDetails.host.short_name,
+                                                                                                                                                        t=str(job.job_history[-1].datetime),
+                                                                                                                                                        group=job.group,
+                                                                                                                                                        info=job.info_text,
+                                                                                                                                                        command=job.command[:30],
+                                                                                                                                                        dots="..." if len(job.command)>30 else "" )
+            if response:
+                request.send( response )
             else:
                 request.send("no running jobs")
 
-        #  get finished jobs
-        elif self.commands["LSRJOBS"].re.match(receivedStr):
-            fJobs = self.TMS.finishedJobs
+            dbconnection.remove()
 
-            if fJobs:
-                jobs = self.formatJobOutput(fJobs)
-                request.send(jobs)
+        #  get finished jobs
+        elif self.commands["LSFJOBS"].re.match(receivedStr):
+            # connect to database
+            dbconnection = hDBConnection()
+
+            rJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( and_(db.Job.user_id==self.TMS.userID,
+                                                                                    db.JobDetails.job_status_id==self.TMS.databaseIDs['finished'] ) ).all()
+
+            response = ""
+            for idx,job in enumerate(rJobs):
+                response += "{i} - [jobid:{id}] [status:finished since {t}] [group:{group}] [info:{info}] [command:{command}{dots}]\n".format( i=idx,
+                                                                                                                                               id=job.id,
+                                                                                                                                               t=str(job.job_history[-1].datetime),
+                                                                                                                                               group=job.group,
+                                                                                                                                               info=job.info_text,
+                                                                                                                                               command=job.command[:30],
+                                                                                                                                               dots="..." if len(job.command)>30 else "" )
+            if response:
+                request.send( response )
             else:
                 request.send("no finished jobs")
+
+            dbconnection.remove()
                 
         #  get job info of job with given jobID
         elif self.commands["LSJOBINFO"].re.match(receivedStr):
@@ -1496,6 +1575,7 @@ class TaskManagerServerProcessor(object):
                             'TMSPort': self.TMS.info['port'],
                             'TMSID': self.TMS.ID,
                             'infoText': infoText,
+                            'group': group,
                             'command': command,
                             'shell': shell,
                             'stdout': stdout,
@@ -1509,7 +1589,8 @@ class TaskManagerServerProcessor(object):
             com = "addjob:%s" % jsonOutObj
 
             try:
-                response = self.TMS.sendCommandToTaskDispatcher( com )
+                jobID = self.TMS.sendCommandToTaskDispatcher( com )
+                response = "Job [{id}] has been submitted to TaskDispatcher.\nSo long, and thanks for all the fish.".format(id=jobID)
                 request.send( response )
             except:
                 traceback.print_exc(file=sys.stderr)
@@ -1561,10 +1642,10 @@ class TaskManagerServerProcessor(object):
 
 
         #  authorization from task dispatcher to run a job on given host
-        elif self.commands["RUNJOB"].re.match(receivedStr ):
+        elif self.commands["RUNJOB"].re.match( receivedStr ):
             c = self.commands["RUNJOB"]
 
-            jobInfo = json.loads( c.re.match(receivedStr ).groups()[0] )
+            jobInfo = json.loads( c.re.match( receivedStr ).groups()[0] )
 
             jobID = jobInfo['jobID']
             hostID = jobInfo['hostID']
@@ -1599,7 +1680,23 @@ class TaskManagerServerProcessor(object):
             command = 'runjob:{j}'.format( j=jsonObj )
 
             logger.info('[{th}] ... send job to TMMS on {h}:{p}'.format(th=threadName, h=TMMS.host, p=TMMS.port) )
-            TMMS.send( command, createNewSocket=True )
+            ret = TMMS.send( command, createNewSocket=True )
+
+            if ret!=True and ret.strerror=="Connection refused":
+                # remove TMMS
+                del self.TMS.cluster[ hostID ]
+
+                logger.info('[{th}] ... failed. send job again to TMS.'.format(th=threadName, h=TMMS.host, p=TMMS.port) )
+                
+                clientSock = hSocket(sslConnection=self.TMS.sslConnection,
+                                     EOCString=self.TMS.EOCString,
+                                     certfile=self.TMS.certfile,
+                                     keyfile=self.TMS.keyfile,
+                                     ca_certs=self.TMS.ca_certs)
+
+                clientSock.initSocket( self.TMS.host, self.TMS.port )
+                clientSock.send( receivedStr )
+                
 
             ##jsonInObj = c.re.match(receivedStr ).groups()[0]
             ##jsonInObj = json.loads(jsonInObj)
@@ -2086,6 +2183,31 @@ class TaskManagerServerProcessor(object):
     #        self.TMS.logFileTMS.flush()
 
 
+    def formatJobList(self,jobList):
+        """! return all jobs from jobList with jobID, jobinfo, and status
+        
+        @param jobList list of jobIDs which will be shown
+        """
+
+        jobs = ""
+        for i,jobID in enumerate(jobList):
+            jobs += "{i} - {id}\n".format(i=i, id=jobID )
+            
+            #job = self.TMS.jobsDict.get(jobID,None)
+            #if job:
+            #    jobInfo = job.getJobInfo('jobInfo')
+            #    status = job.getStatus()
+            #    #startTime = job.getStartTime()
+            #    #startTime = startTime.replace(':','.')
+            #    #endTime = job.getEndTime()
+            #    #if endTime:
+            #    #    endTime = endTime.replace(':','.')
+            #
+            #    #jobs += """%s - %s:%s:%s:%s:%s\n"""  % (i,jobID,jobInfo,startTime,endTime,status)
+            #    jobs += """%s - %s:%s:%s\n"""  % (i,jobID,jobInfo,status)
+
+        return jobs.strip()
+    
     def formatJobOutput(self,jobList):
         """! return all jobs from jobList with jobID, jobinfo, and status
         @param jobList list of jobIDs which will be shown
