@@ -953,14 +953,19 @@ class TaskManagerServerProcessor(object):
                                         regExp = "^help$",
                                         help = "return help")
 
-        self.commands["ADDJOB"] = hCommand(command_name = 'addjobJSON',
+        self.commands["ADDJOB"] = hCommand(command_name = 'addjob',
                                            arguments = "<jsonStr>",
                                            regExp = 'addjob:(.*)',
-                                           help = "add job to TMS as json string")
+                                           help = "add job to TMS.")
 
+        self.commands["ADDJOBS"] = hCommand(command_name = 'addjobs',
+                                           arguments = "<jsonStr>",
+                                           regExp = 'addjobs:(.*)',
+                                           help = "add severla jobs at once to TMS.")
+        
         self.commands["SETPERSISTENT"] = hCommand(command_name = 'setpersistent',
-                                                 regExp = '^setpersistent$',
-                                                 help = "set socket connection persistent, i.e. do not close socket")
+                                                  regExp = '^setpersistent$',
+                                                  help = "set socket connection persistent, i.e. do not close socket")
         
         self.commands["UNSETPERSISTENT"] = hCommand(command_name = 'unsetpersistent',
                                                    regExp = '^unsetpersistent$',
@@ -1538,7 +1543,7 @@ class TaskManagerServerProcessor(object):
         ##
         ##        logger.info("[%s] ... sent failed" % threadName)
 
-        #  add job and register job to task dispatcher. after that, Job will be added to waitingList
+        #  add job and register job to task dispatcher
         elif self.commands["ADDJOB"].re.match(receivedStr):
             c = self.commands["ADDJOB"]
 
@@ -1555,18 +1560,6 @@ class TaskManagerServerProcessor(object):
             priority = jsonInObj['priority']
             excludedHosts = jsonInObj.get("excludedHosts",[])
             user = self.TMS.info['user']
-
-            ##add job and get prelimenary jobID
-            #preJobID = self.TMS.addJob(
-            #    command = command,
-            #    jobInfo = jobInfo,
-            #    logFile = logFile,
-            #    shell = shell,
-            #    TaskDispatcherHost = TDHost,
-            #    TaskDispatcherPort = TDPort
-            #    )
-            #logger.info("[%s] ... added job: %s (preliminary jobID)" % (threadName,preJobID))
-            #logger.info('[%s] ... sending job to TD' % threadName)
 
             logger.info('[%s] ... send job to TD' % threadName)
 
@@ -1597,50 +1590,53 @@ class TaskManagerServerProcessor(object):
                 request.send("Could not connect to TaskDispatcher.")
 
 
+        #  add several jobs and register these to task dispatcher
+        elif self.commands["ADDJOBS"].re.match(receivedStr):
+            c = self.commands["ADDJOBS"]
+
+            jsonInObj = c.re.match(receivedStr).groups()[0]
+            jsonInObj = json.loads(jsonInObj)
+
+            command = jsonInObj['command']
+            infoText = jsonInObj['infoText']
+            group = jsonInObj['group']
+            stdout = jsonInObj['stdout']
+            stderr = jsonInObj['stderr']
+            logfile = jsonInObj['logfile']
+            shell = jsonInObj['shell']
+            priority = jsonInObj['priority']
+            excludedHosts = jsonInObj.get("excludedHosts",[])
+            user = self.TMS.info['user']
+
+            logger.info('[%s] ... send job to TD' % threadName)
+
+            # register job at TaskDispatcher
+            jsonOutObj =  { 'TMSHost': self.TMS.info['host'],
+                            'TMSPort': self.TMS.info['port'],
+                            'TMSID': self.TMS.ID,
+                            'infoText': infoText,
+                            'group': group,
+                            'command': command,
+                            'shell': shell,
+                            'stdout': stdout,
+                            'stderr': stderr,
+                            'logfile': logfile,
+                            'user': user,
+                            'priority': priority,
+                            'excludedHosts': excludedHosts}
+
+            jsonOutObj = json.dumps(jsonOutObj)
+            com = "addjob:%s" % jsonOutObj
+
+            try:
+                jobID = self.TMS.sendCommandToTaskDispatcher( com )
+                response = "Job [{id}] has been submitted to TaskDispatcher.\nSo long, and thanks for all the fish.".format(id=jobID)
+                request.send( response )
+            except:
+                traceback.print_exc(file=sys.stderr)
+                request.send("Could not connect to TaskDispatcher.")
+
                 
-            ##if tdConn.openConnection:
-            ##    tdConn.sendAndRecvAndClose(com)
-            ##
-            ##    logger.info("[%s] acquire LOCK (for registering job)" % (threadName))
-            ##    self.TMS.Lock.acquire()
-            ##    if tdConn.requestSent:
-            ##        # successful response
-            ##
-            ##        # new jobID
-            ##        jobID = tdConn.response
-            ##        #self.TMS.registerJob(preJobID,jobID)
-            ##
-            ##        self.TMS.addJob(
-            ##            jobID,
-            ##            command = command,
-            ##            jobInfo = jobInfo,
-            ##            logFile = logFile,
-            ##            shell = shell,
-            ##            TaskDispatcherHost = TDHost,
-            ##            TaskDispatcherPort = TDPort
-            ##            )
-            ##
-            ##        logger.info("[%s] ... ... assigned jobID: %s" % (threadName,jobID))
-            ##
-            ##        request.send("Job (id: %s) submitted to TaskDispatcher %s:%s.\nSo long, and thanks for all the fish." % (jobID,TDHost,TDPort))
-            ##
-            ##        #self.executeJobEvent(request,threadName,jobID)
-            ##    else:
-            ##        # something went wrong
-            ##        logger.info("[%s] ... sent failed" % threadName)
-            ##
-            ##        request.send("TMS error while sending to TD %s:%s" % (TDHost,TDPort))
-            ##    self.TMS.Lock.release()
-            ##    logger.info("[%s] release LOCK (for registering job)" % (threadName))
-            ##
-            ##else:
-            ##    # something went wrong
-            ##    logger.info("[%s] ... sent failed" % threadName)
-            ##
-            ##    request.send("TMS error while connecting to TD %s:%s" % (TDHost,TDPort))
-
-
-
         #  authorization from task dispatcher to run a job on given host
         elif self.commands["RUNJOB"].re.match( receivedStr ):
             c = self.commands["RUNJOB"]

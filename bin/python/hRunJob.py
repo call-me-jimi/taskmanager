@@ -15,6 +15,7 @@ import subprocess
 import re
 import textwrap
 import time
+from pprint import pprint
 
 homedir = os.environ['HOME']
 user = pwd.getpwuid(os.getuid())[0]
@@ -64,15 +65,20 @@ if __name__ == '__main__':
                         nargs = '*',
                         metavar = 'COMMAND',
                         help = "Command which will be sent to the server." )    
-    parser.add_argument("-E", "--excludeComputers",
+    parser.add_argument("-E", "--excludeHosts",
                         metavar = "HOST[,HOST,...]",
                         dest = "excludeHosts",
                         default = "",
                         help = "Exclude computers from cluster for calculating given job. Consider option -H for a cluster overview." )
+    parser.add_argument("-f", "--jobsFile",
+                        metavar = "FilE",
+                        default = "",
+                        dest = "jobsFile",
+                        help = "File in which in each line a job and respective additional info are given. Each line is tab-delimited with the fields group, info text, command, log file, stdout file, stderr file. Leave empty if respective field is not specified, but leave preceding tab. If field 'group' is not given in file the respective command line argument (if specified) is taken. if field info text, log file, stdout file, stderr file is not given in file the respective command line argument (if specified) is taken with an appended running number.")
     parser.add_argument("-g", "--group",
                         dest="group",
                         default="",
-                        help="Assign a group to this job in order to refer to it later.")
+                        help="Assign a group given as a string to this job in order to refer to it later.")
     parser.add_argument("-i", "--info-text",
                         dest="infoText",
                         default="",
@@ -117,126 +123,6 @@ if __name__ == '__main__':
                        default = False,
                        help = "Print additional information to stdout.")
     
-
-    ##......................................
-    ##usage = "usage: %prog [options] Command"
-    ##description = "Interface to a TaskDispatcher. Get information about your TaskManagerServer (TMS) and the TaskDispatcher, send and kill jobs, and get information about your jobs which have been send to the TaskDispatcher."
-    ##epilog = "Written by Hotbdesiato."
-    ##parser = OptionParser(usage=usage,
-    ##                      description=description,
-    ##                      epilog=epilog)
-    ##parser.add_option("-d", "--nonDaemonMode",
-    ##                  action="store_false",
-    ##                  dest="daemonMode",
-    ##                  default=True,
-    ##                  help="Start TMS in foreground (not as daemon). TMS will be shut down after last job has been processed. Make sure that TMS is not running before.")
-    ##parser.add_option("-D", "--nonDaemonModePersistent",
-    ##                  action="store_true",
-    ##                  dest="persistent",
-    ##                  default=False,
-    ##                  help="Start TMS in foreground (not as daemon) as persistent server. Make sure that TMS is not running before.")
-    ##parser.add_option("-E", "--excludeComputers",
-    ##                  type="string",
-    ##                  dest="excludeHosts",
-    ##                  default="",
-    ##                  help="Exclude computers from cluster for calculating given job. Consider option -H for a cluster overview.")
-    ##parser.add_option("-H", "--clusterOverview",
-    ##                  action="store_true",
-    ##                  dest="clusterOverview",
-    ##                  default=False,
-    ##                  help="Print all computers in cluster and their properites.")
-    ##parser.add_option("-i", "--info-text",
-    ##                  type="string",
-    ##                  nargs=1,
-    ##                  dest="info_text",
-    ##                  default="",
-    ##                  help="Info text about current calculation (optional).")
-    ##                
-    ###parser.add_option("-s","--shell", type="string", nargs=1, dest="shell",
-    ###                  default="",
-    ###                  help="determine execution shell.")
-    ##
-    ##parser.add_option("-j", "--jobStatus",
-    ##                  type = "string",
-    ##                  nargs = 1,
-    ##                  dest = "jobID",
-    ##                  default = "",
-    ##                  help = "Retrieve information about job with given jobID.")
-    ##parser.add_option("-J", "--killJob",
-    ##                  type="string",
-    ##                  nargs=1,
-    ##                  dest="jobIDForKill",
-    ##                  default="",
-    ##                  help="Kill job with given jobID.")
-    ##parser.add_option("-k", "--kill",
-    ##                  action="store_true",
-    ##                  dest="killTMS",
-    ##                  default=False,
-    ##                  help="Kill current TMS.")
-    ##parser.add_option("-K", "--killMatchingJobs",
-    ##                  type="string",
-    ##                  nargs=1,
-    ##                  dest="matchStringForKill",
-    ##                  default="",
-    ##                  help="Kill all jobs matching their info to given string. A user can be specified by a colon.")
-    ##parser.add_option("-l", "--logfile",
-    ##                  type="string",
-    ##                  nargs=1,
-    ##                  dest="logfile",
-    ##                  default="",
-    ##                  help="Write output of command started by hRun in LOGFILE.")                
-    ##parser.add_option("-L", "--logfileTMS",
-    ##                  type="string",
-    ##                  nargs=1,
-    ##                  dest="logfileTMS",
-    ##                  default="",
-    ##                  help="Write in- and output communications of TMS in LOGFILETMS. Make sure TMS is is not running.")
-    ##parser.add_option("-m", "--match",
-    ##                  type="string",
-    ##                  nargs=1,
-    ##                  dest="matchString",
-    ##                  default="",
-    ##                  help="Get all jobs matching their info to given string.")                
-    ##parser.add_option("-p", "--priority",
-    ##                  type = "string",
-    ##                  nargs = 1,
-    ##                  dest = "priority",
-    ##                  default = "0",
-    ##                  help = "Set priority of job. 1. Only two priorities are supported: 0 for no priority and non-zero for highest priority.")
-    ##parser.add_option("-q", "--quiet",
-    ##                  action="store_false",
-    ##                  dest="verbose",
-    ##                  default=True,
-    ##                  help="Do not print any status messages to stdout.")
-    ##parser.add_option("-s", "--status",
-    ##                  action="store_true",
-    ##                  dest="showStatus",
-    ##                  default=False,
-    ##                  help="Show information about taskmanager server and taskdispatcher.")
-    ##parser.add_option("-S", "--shell",
-    ##                  type = "choice",
-    ##                  nargs = 1,
-    ##                  dest = "shell",
-    ##                  #default = "tcsh",
-    ##                  default = loginShell,
-    ##                  choices = ['tcsh','bash'],
-    ##                  help = "Define execution shell (tcsh or bash). Default: login shell.")
-    ##parser.add_option("-t", "--startTMS",
-    ##                  action="store_true",
-    ##                  dest="startTMS",
-    ##                  default=False,
-    ##                  help="Start TMS explicitly and print TMS info messages to stdout forever. Make sure that TMS is not running.")
-    ##parser.add_option("-T", "--TaskDispatcher",
-    ##                  nargs = 2,
-    ##                  dest="TD",
-    ##                  default=None,
-    ##                  help = "Specify host and port of TaskDispatcher as space separated tuple.")
-    ##parser.add_option("-v", "--verbose",
-    ##                  action = "store_true",
-    ##                  dest = "verboseMode",
-    ##                  default = False,
-    ##                  help = "Print additional information to stdout.")
-                      
     args = parser.parse_args()
 
     certfile = "%s/.taskmanager/%s.crt" % (homedir,user)
@@ -269,15 +155,6 @@ if __name__ == '__main__':
         sys.stderr.write("Could not start a TMS!\n")
         sys.exit(-1)
 
-    #tmsConn = TMConnection(host=TMS.host,
-    #                       port=TMS.port,
-    #                       sslConnection=TMS.sslConnection,
-    #                       keyfile=TMS.keyfile,
-    #                       certfile=TMS.certfile,
-    #                       ca_certs=TMS.ca_certs,
-    #                       catchErrors=False,
-    #                       verboseMode=options.verboseMode)
-
     setPersistent = False
     
     # assemble requests
@@ -303,22 +180,55 @@ if __name__ == '__main__':
     #elif options.clusterOverview:
     #    jobs = ['lsactivecluster']
     else:
-        jsonObj = {'command': command,
-                   'infoText': args.infoText,
-                   'group': args.group,
-                   'stdout': args.stdout,
-                   'stderr': args.stderr,
-                   'logfile': args.logfile,
-                   'shell': args.shell,
-                   'priority': args.priority,
-                   'excludedHosts': args.excludeHosts.split(','),
-                   'user': user }
+        if args.jobsFile:
+            # send several jobs at once
+            jsonObj = { 'shell': args.shell,
+                        'priority': args.priority,
+                        'excludedHosts': args.excludeHosts.split(','),
+                        'user': user,
+                        'jobs': [] }
 
-        jsonObj = json.dumps(jsonObj)
+            with open(args.jobsFile,'r') as f:
+                for idx,line in enumerate(f):
+                    try:
+                        # neglect those lines with a leading '#'
+                        if line[0] == '#': continue
+                        
+                        group, infoText, command, logFile, stdoutFile, stderrFile = line.strip('\n').split( '\t' )
+                        
+                    except:
+                        # read next row
+                        continue
 
-        jobs = ['addjob:%s' % jsonObj]
+                    jsonObj['jobs'].append( {'command': command,
+                                             'infoText': infoText.format(idx=idx) if infoText else args.infoText+" "+str(idx) if args.infoText else '',
+                                             'group': group if group else args.group,
+                                             'stdout': stdoutFile.format(idx=idx) if stdoutFile else args.stdout+"_"+str(idx) if args.stdout else '',
+                                             'stderr': stderrFile.format(idx=idx) if stderrFile else args.stderr+"_"+str(idx) if args.stderr else '',
+                                             'logfile': logFile.format(idx=idx) if logFile else args.logfile+"_"+str(idx) if args.logfile else '' } )
+                jsonObj = json.dumps(jsonObj)
+                
+            jobs = ['addjobs:%s' % jsonObj]
+        else:
+            # send a single job
+            jsonObj = {'command': command,
+                       'infoText': args.infoText,
+                       'group': args.group,
+                       'stdout': args.stdout,
+                       'stderr': args.stderr,
+                       'logfile': args.logfile,
+                       'shell': args.shell,
+                       'priority': args.priority,
+                       'excludedHosts': args.excludeHosts.split(','),
+                       'user': user }
+
+            jsonObj = json.dumps(jsonObj)
+
+            jobs = ['addjob:%s' % jsonObj]
 
 
+    pprint( jobs )
+    asdkfj
     #send commands to TMS
     try:
         for i,job in enumerate(jobs):
