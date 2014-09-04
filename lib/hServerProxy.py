@@ -8,6 +8,24 @@ import re
 import ConfigParser
 import socket
 
+# logging
+import sys
+import logging
+logger = logging.getLogger('hServerProxy')
+logger.setLevel(logging.WARNING)
+
+formatter = logging.Formatter('[%(asctime)-15s] [hServerProxy] %(message)s')
+
+# create console handler and configure
+consoleLog = logging.StreamHandler(sys.stdout)
+consoleLog.setLevel(logging.DEBUG)
+consoleLog.setFormatter(formatter)
+
+# add handler to logger
+logger.addHandler(consoleLog)
+
+
+
 # get path to taskmanager. it is assumed that this file is in the bin/python directory of
 # the taskmanager package.
 tmpath = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/..') )
@@ -56,13 +74,21 @@ class hServerProxy(object):
 
         self.homedir = os.environ['HOME']
 
+        if verboseMode:
+            logger.setLevel( logging.DEBUG )
+
+        logger.info( 'server proxy for {s}'.format(s=self.serverType) )
+        
         # read default config file
         defaultConfigFileName = "%s/serversettings.cfg" % etcPath
+        
+        logger.info( "read config file {f}".format(f=defaultConfigFileName) )
+        
         if os.path.exists( defaultConfigFileName ):
             defaultConfig = ConfigParser.ConfigParser()
             defaultConfig.read( defaultConfigFileName )
         else:
-            print "ERROR: config file {f} could not be found".format( f="%s/serversettings.cfg" % etcPath )
+            logger.info( "ERROR: config file {f} could not be found".format( f=defaultConfigFileName ) )
 
         # python executable (to start server)
         self.python = defaultConfig.get( 'SYSTEM', 'python' )
@@ -86,37 +112,29 @@ class hServerProxy(object):
             self.sslConnection = tmmsInfo.get('sslConnection', useSSLConnection)
             self.EOCString = tmmsInfo.get('eocstring', EOCString)
         elif self.serverType != '':
-            print "ERROR: server type is not unknown!"
+            logger.warning( "ERROR: server type is not unknown!" )
         else:
-            print "ERROR: server type is missing!"
+            logger.warning( "ERROR: server type is missing!" )
 
         # pid of current process
         self.pid = os.getpid()
 
+        logger.info( 'pid {p}'.format(p=self.pid) )
 
     def run(self):
         """! @brief check if there is a server running on stored port. if not try to invoke one."""
         status = None
         cnt = 0
 
+        logger.info( 'run server' )
+        
         # try maximal 5 times to invoke a server
         while cnt<5 and not self.running:
             cnt += 1
 
-            if self.verboseMode:
-                print "[%s] [%s. attempt] checking server on %s:%s" % (self.pid, cnt, self.host, self.port)
-                sys.stdout.flush()
+            logger.info( "[{i}. attempt] checking server on {h}:{p}. ".format(i=cnt, h=self.host, p=self.port) )
 
             connStatus = self.connectToServer( cnt )
-            #if self.verboseMode:
-            #    if connStatus==1:
-            #        statusText = "Server is running and understands me"
-            #    elif connStatus==2:
-            #        statusText = "Server is running but do not understands me"
-            #    else:
-            #        statusText = "Server is not running"
-            #
-            #    print "[%s] [%s. attempt] ... status %s" % (self.pid,cnt,statusText)
 
             if connStatus == 1:
                 # Server is running and understands me
@@ -134,8 +152,7 @@ class hServerProxy(object):
                 pass
 
             # try to start a new Server on port in case of status 2 or 3
-            if self.verboseMode:
-                print "[%s] [%s. attempt] invoke Server ..." % (self.pid,cnt)
+            logger.info( "[{i}. attempt] invoke server on {h}:{p}.".format(i=cnt, h=self.host, p=self.port) )
                 
             status = self.invokeServer( cnt )
 
@@ -149,9 +166,7 @@ class hServerProxy(object):
                     3 ... Server is not running"""
 
         try:
-            if self.verboseMode:
-                print "[%s] [%s. attempt] ... connecting to Server on %s:%s ..." % (self.pid,cnt,self.host,self.port)
-                sys.stdout.flush()
+            logger.info( "[{i}. attempt] connecting to server on {h}:{p}.".format(i=cnt, h=self.host, p=self.port) )
 
             command = "ping"
             self.clientSock = hSocket(host=self.host,
@@ -168,15 +183,13 @@ class hServerProxy(object):
             response = self.clientSock.recv()
             
             if response == "pong":
-                if self.verboseMode:
-                    print "[%s] [%s. attempt] ... is running." % (self.pid,cnt)
+                logger.info( "[{i}. attempt] ... server on {h}:{p} is running.".format(i=cnt, h=self.host, p=self.port) )
 
                 self.running = True
                 return 1
             else:
-                if self.verboseMode:
-                    print "   ",response
-                    print "[%s] [%s. attempt] ... is running, but connection failed." % (self.pid,cnt)
+                logger.info( "[{i}. attempt] ... server on {h}:{p} is running, but connection failed.".format(i=cnt, h=self.host, p=self.port) )
+                logger.info( "[{i}. attempt] ... error: {e}".format(i=cnt, e=response) )
 
                 self.running = False
                 return 2
@@ -184,15 +197,17 @@ class hServerProxy(object):
         except socket.error,msg:
             # msg is something like "[Errno 111] Connection refused":
             self.running = False
-            if self.verboseMode:
-                print "[%s] [%s. attempt] ... is not running" % (self.pid,cnt)
+
+            logger.info( "[{i}. attempt] ... server on {h}:{p} is NOT running.".format(i=cnt, h=self.host, p=self.port) )
+            logger.info( "[{i}. attempt] ... error: {e}".format(i=cnt, e=msg) )
 
             return 3
             
         except AttributeError,msg:
             self.running = False
-            if self.verboseMode:
-                print "[%s] [%s. attempt] ... is not running" % (self.pid,cnt)
+            
+            logger.info( "[{i}. attempt] ... server on {h}:{p} is NOT running.".format(i=cnt, h=self.host, p=self.port) )
+            logger.info( "[{i}. attempt] ... error: {e}".format(i=cnt, e=msg) )
 
             return 3
             
@@ -204,24 +219,21 @@ class hServerProxy(object):
         @return (successful|finished) successful: started server, failed: start has failed
         """
 
-        if self.verboseMode:
-            print "[%s] [%s. attempt] ... try to start server on %s:%s ..." % (self.pid,cnt,self.host,self.port)
-
+        logger.info( "[{i}. attempt] invoke server on {h}:{p}. ".format(i=cnt, h=self.host, p=self.port) )
 
         try:
             if self.serverType=='TMS':
-                run = 'hRunTMS.py'
+                runServer = 'hRunTMS.py'
             elif self.serverType=='TMMS':
-                run = 'hRunTMMS.py'
-            
-            com = "ssh -x -a {host} {python} {binpath}/python/{run} -p {port}".format( python = self.python,
-                                                                                       host = self.host,
-                                                                                       run = run,
-                                                                                       binpath = binPath,
-                                                                                       port = self.port)
+                runServer = 'hRunTMMS.py'
 
-            if self.verboseMode:
-                print "[%s] [%s. attempt] ... command: %s" % (self.pid,cnt,com)
+            com = "ssh -x -a {host} {python} {binpath}/python/{runServer} -p {port}".format( python = self.python,
+                                                                                             host = self.host,
+                                                                                             runServer = runServer,
+                                                                                             binpath = binPath,
+                                                                                             port = self.port)
+
+            logger.info( "[{i}. attempt] command:".format(i=cnt, command=com) )
 
             # invoke server as daemon
             sp=subprocess.Popen(com,
@@ -230,36 +242,39 @@ class hServerProxy(object):
                                 stderr=subprocess.PIPE)
             out,err = sp.communicate()
 
-            if self.verboseMode and out:
-                print out
-
             if re.search('Address already in use',err):
-                print "[%s] [%s. attempt] ... ... Address already in use" % self.pid
+                logger.info( "[{i}. attempt] ... Address already in use".format(i=cnt) )
+                
                 self.started = False
                 self.running = False
+                
                 return "failed"
             elif err:
-                print "[%s] [%s. attempt] ... ... Server error while initiation: %s" % (self.pid,cnt,err)
+                logger.info( "[{i}. attempt] ... Server error while initiation: {err}".format(i=cnt, err=err) )
+                
                 self.started = False
                 self.running = False
+                
                 return "failed"
             else:
                 self.started = True
-                if self.verboseMode:
-                    print "[%s] [%s. attempt] ... ... Server has been started." % (self.pid,cnt)
+
+                logger.info( "[{i}. attempt] ... Server has been started on {h}:{p}".format(i=cnt, h=self.host, p=self.port) )
 
                 return "successful"
 
         except socket.error,msg:
-            sys.sterr.write("Connection to %s:%s could not be established\n" % (host,port))
+            logger.warning( "[{i}. attempt] ... Connection to server on {h}:{p} could not be established".format(i=cnt, h=self.host, p=self.port) )
+            
             return "failed"
 
 
     def send(self,command, createNewSocket=False):
-        if self.verboseMode:
-            print "... send request: %s" % command
+        logger.info( "send request: {c}".format(c=command) )
 
         if createNewSocket:
+            logger.info( "create new socket" )
+            
             try:
                 self.clientSock = hSocket(host=self.host,
                                           port=self.port,
@@ -273,19 +288,25 @@ class hServerProxy(object):
                 return msg
 
         self.clientSock.send(command)
+
+        logger.info( "... done" )
+        
         return True
 
     def recv(self):
         recv = self.clientSock.recv()
 
-        if self.verboseMode:
-            print "... received response from server:",recv
+        recvShort = recv.replace('\n', '\\')[:30]
+        logger.info( "response from server: {r}{dots}".format(r=recvShort, dots="..." if len(recv)>30 else "" ) )
 
         return recv
 
     def close(self):
         """ close connection """
         #self.clientSock.close()
+
+        logger.info( "close server" )
+        
         self.clientSock.shutdown(socket.SHUT_RDWR)
         self.openConnection = False
 

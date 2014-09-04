@@ -551,21 +551,21 @@ class TaskManagerMenialServerProcessor:
             dbconnection.commit()
             dbconnection.remove()
             
-            try:
-                clientSock = hSocket(host=TMMS.tmsHost,
-                                     port=TMMS.tmsPort,
-                                     EOCString=TMMS.EOCString,
-                                     sslConnection=TMMS.sslConnection,
-                                     certfile=certfile,
-                                     keyfile=keyfile,
-                                     ca_certs=ca_certs,
-                                     catchErrors=False)
-            
-                clientSock.send("ProcessFinished:%s" % (jobID))
-                clientSock.close()
-            except:
-                sys.stderr.write("TMMS: Connection to TMS failed. ProcessFinish could not be send for job %s!" % jobID)
-                # write to log file
+            #try:
+            #    clientSock = hSocket(host=TMMS.tmsHost,
+            #                         port=TMMS.tmsPort,
+            #                         EOCString=TMMS.EOCString,
+            #                         sslConnection=TMMS.sslConnection,
+            #                         certfile=certfile,
+            #                         keyfile=keyfile,
+            #                         ca_certs=ca_certs,
+            #                         catchErrors=False)
+            #
+            #    clientSock.send("ProcessFinished:%s" % (jobID))
+            #    clientSock.close()
+            #except:
+            #    sys.stderr.write("TMMS: Connection to TMS failed. ProcessFinish could not be send for job %s!" % jobID)
+            #    # write to log file
 
             processingStatus = "done"
 

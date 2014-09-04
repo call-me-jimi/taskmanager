@@ -83,329 +83,6 @@ tdInfo = hTaskDispatcherInfo()
 
 TaskDispatcherHost = tdInfo.get('host', None)
 TaskDispatcherPort = tdInfo.get('port', None)
-##useSSLConnection = tdInfo.get('sslconnection', False)
-
-
-
-
-
-###class Job:
-###    """ class for a job which is run on cluster """
-###    def __init__(self):
-###        ## status of job
-###        self.status = "initiated"
-###        self.statusCode = 0
-###        self.jobID = None
-###        self.jobInfo = {
-###            'command': None,
-###            'jobInfo': None,
-###            'host': None,
-###            'shell': None,
-###            'logFile': None,
-###            'TaskDispatcherHost': None,
-###            'TaskDispatcherPort': None,
-###            'fileCommand': None,
-###            'fileOutput': None,
-###            'fileError': None,
-###            'pid': None,
-###            'returnCode': None
-###            }
-###        self.events = []	# list of events: [(time,event)]
-###
-###    def getStatus(self):
-###        return self.status
-###
-###    def getJobInfo(self,what):
-###        return self.jobInfo.get(what,None)
-###
-###    def setAsAdded(self):
-###        self.statusCode += 1
-###        self.status = "added"
-###        history.addEvent( self.jobID,'added' )
-###        self.addEvent("added by TMS")
-###
-###    def setAsPending(self):
-###        self.statusCode += 2
-###        self.status = "pending"
-###        history.addEvent( self.jobID, 'start initiated' )
-###        self.addEvent("sent to TMMS")
-###
-###    def setAsRunning(self):
-###        self.statusCode += 4
-###        self.status = "running"
-###        history.addEvent( self.jobID, 'started' )
-###        self.addEvent("started")
-###
-###    def setAsFinished(self):
-###        self.statusCode += 8
-###        self.status = "finished"
-###        history.addEvent( self.jobID, 'finished' )
-###        self.addEvent("finished")
-###
-###    ##def setAsStartFailed(self):
-###    ##    self.statusCode = 1
-###    ##    self.status = "failed"
-###    ##    self.addEvent("finishedWithError")
-###
-###    def setJobInfo(self,**kwargs):
-###        for k in kwargs:
-###            if k in self.jobInfo:
-###                self.jobInfo[k]=kwargs[k]
-###
-###    def addEvent(self,what):
-###        """add event to event list"""
-###        self.events.append((strftime("%d %b %Y, %H:%M:%S"),what))
-###
-###
-###class ClusterHost:
-###    """!brief class of a host in computer cluster """
-###    def __init__(self,name,tdHost,tdPort,tmsHost,tmsPort):
-###        """!@brief Constructor
-###
-###        @param name host name
-###        @param tdHost TaskDispatcher host
-###        @param tdPort TaskDispatcher port
-###        @param tmsHost TaskManagerServer host
-###        @param tmsPort TaskManagerServer port
-###        """
-###        self.hostName = name
-###        self.tmmsPort = -1
-###        self.tdHost = tdHost
-###        self.tdPort = tdPort
-###        self.tmsHost = tmsHost
-###        self.tmsPort = tmsPort
-###        #self.tmmsConn = None
-###        self.tmmsPid = None
-###        self.tmmsIsRunning = False
-###        self.Lock = Lock()
-###
-###
-###    def checkTMMS(self):
-###        """!@brief check if TMMS is running"""
-###
-###        currThread = threading.currentThread()
-###        threadName = currThread.getName()
-###
-###        logger.info("[%s] check TMMS %s:%s" % (threadName,self.hostName,self.tmmsPort))
-###        if self.tmmsPort==-1:
-###            # read TMMS config file
-###            try:
-###                with open("%s/.taskmanagerV2/tmms.%s.config" % (homeDir,self.hostName)) as f:
-###                    # read first line for port
-###                    l = f.readline()
-###                    port = int(l.split("\t")[1])
-###                    self.tmmsPort = port
-###            except:
-###                logger.info("[%s] ... is not running" % (threadName))
-###                return False
-###
-###        # connect to TMMS and send job
-###        tmmsConn = TMConnection(self.hostName,
-###                                self.tmmsPort,
-###                                sslConnection=sslConnection,
-###                                keyfile=keyfile,
-###                                certfile=certfile,
-###                                ca_certs=ca_certs,
-###                                catchErrors=False,
-###                                loggerObj=logger)
-###
-###        com = "ping"
-###        if tmmsConn.openConnection:
-###            tmmsConn.sendAndRecvAndClose(com)
-###            if tmmsConn.requestSent:
-###                if tmmsConn.response=="tmms":
-###                    logger.info("[%s] ... is running" % (threadName))
-###                    return True
-###                else:
-###                    logger.info("[%s] ... is not running" % (threadName))
-###                    return False
-###            else:
-###                logger.info("[%s] ... is not running" % (threadName))
-###                return False
-###        else:
-###            logger.info("[%s] ... is not running" % (threadName))
-###            return False
-###
-###
-###    def connectToTMMS(self):
-###        """!@brief establish connection to TMMS. invoke TMMS if necessary
-###
-###        1. check if there is a stored TMMS port -> try to connect
-###        2. in case of non-available TMMS port -> call invokeTMMS()
-###        3. connect to TMMS and return TMConnection instance
-###
-###        @return TMConnection instance
-###        """
-###
-###        currThread = threading.currentThread()
-###        threadName = currThread.getName()
-###
-###        self.Lock.acquire()
-###        logger.info("[%s] ... acquire LOCK (for connecting to TMMS)" % (threadName))
-###
-###        # try to connect to TMMS on this port
-###        if self.tmmsPort!=-1:
-###            # a port has been already assigned
-###            # try to connect to TMMS
-###            self.tmmsIsRunning = self.checkTMMS()
-###        else:
-###            # no port has been assigned already
-###            self.tmmsIsRunning = False
-###
-###        if not self.tmmsIsRunning:
-###            # invoke TMMS on port
-###            self.invokeTMMS()
-###
-###        if self.tmmsIsRunning:
-###            tmmsConn = self.establishConnection()
-###        else:
-###            tmmsConn = None
-###
-###        logger.info("[%s] ... RELEASE lock (for connecting to TMMS)" % (threadName))
-###        self.Lock.release()
-###
-###        return tmmsConn
-###
-###
-###
-###    def invokeTMMS(self):
-###        """!@brief invoke TMMS
-###
-###        @return <returnCode>
-###        """
-###
-###        currThread = threading.currentThread()
-###        threadName = currThread.getName()
-###
-###        #check number of waiting threads!!!
-###
-###
-###        rc = -1		# return code
-###        cnt = 0		# number of attempts to invoke TMMS
-###        try:
-###            if self.tmmsPort==-1:
-###                # get TMMS port from server
-###                tdConn = TMConnection(self.tdHost,
-###                                      self.tdPort,
-###                                      sslConnection=sslConnection,
-###                                      keyfile=keyfile,
-###                                      certfile=certfile,
-###                                      ca_certs=ca_certs,
-###                                      catchErrors=False,
-###                                      loggerObj=logger)
-###                com = "getnewtmmsport:{hostName}".format(hostName=self.hostName)
-###                logger.info("[%s] ... ask TD for TMMS port: %s" % (threadName,com))
-###                if tdConn.openConnection:
-###                    tdConn.sendAndRecvAndClose(com)
-###                    if tdConn.requestSent:
-###                        try:
-###                            self.tmmsPort = int(tdConn.response)
-###                        except:
-###                            pass
-###                logger.info("[%s] ... ... %s" % (threadName,self.tmmsPort))
-###
-###
-###            while rc!=0 and cnt<5:
-###                logger.info("[%s] ... invoke TMMS on %s:%s" % (threadName,self.hostName,self.tmmsPort))
-###
-###                com = """{binPath}/TMMS {port} {tmshost} {tmsport}""".format(**{'binPath': binPath,
-###                                                                                'port': self.tmmsPort,
-###                                                                                'tmshost': self.tmsHost,
-###                                                                                'tmsport': self.tmsPort,
-###                                                                                })
-###
-###                logger.info("[%s] ... ... command %s" % (threadName,com))
-###
-###                sp = subprocess.Popen(['ssh', '-x', '-a', self.hostName, com])
-###                sp.wait()
-###
-###                rc = sp.returncode
-###                if rc:
-###                    logger.info("[%s] ... invoking TMMS on %s:%s has failed" % (threadName,self.hostName,self.tmmsPort))
-###
-###                    # ask TD for another port:
-###                    com = "getnewtmmsport:%s" % self.hostName
-###                    logger.info("[%s] ... ask TD for TMMS port: %s" % (threadName,com))
-###
-###                    tdConn = TMConnection(self.tdHost,
-###                                          self.tdPort,
-###                                          sslConnection=sslConnection,
-###                                          keyfile=keyfile,
-###                                          certfile=certfile,
-###                                          ca_certs=ca_certs,
-###                                          catchErrors=False,
-###                                          loggerObj=logger)
-###
-###                    tdConn.sendAndRecvAndClose(com)
-###                    self.tmmsPort = int(tdConn.response)
-###                    logger.info("[%s] ... ... %s" % (threadName,self.tmmsPort))
-###
-###                    cnt += 1
-###                else:
-###                    logger.info("[%s] ... TMMS has been invoked on %s:%s" % (threadName,self.hostName,self.tmmsPort))
-###                    c = self.checkTMMS()
-###                    if not c:
-###                        # check of connection failed
-###                        rc = -1
-###                        cnt += 1
-###                    else:
-###                        self.tmmsIsRunning = True
-###                        break
-###        except:
-###            tb = sys.exc_info()
-###
-###            # maybe output to stderr?
-###            traceback.print_exception(*tb,file=sys.stdout)
-###
-###            # start failed - send info to TD??
-###            logger.info("[%s] ... failed!" % threadName)
-###
-###
-###    def establishConnection(self):
-###        """!@brief establish connection to TMMS
-###
-###        @return TMCOnnection instance to TMMS
-###        """
-###
-###        currThread = threading.currentThread()
-###        threadName = currThread.getName()
-###
-###        logger.info("[%s] ... establish connection to %s:%s" % (threadName,self.hostName,self.tmmsPort))
-###        tmmsConn = None
-###        try:
-###            if self.tmmsIsRunning:
-###                tmmsConn = TMConnection(self.hostName,
-###                                        self.tmmsPort,
-###                                        sslConnection=sslConnection,
-###                                        keyfile=keyfile,
-###                                        certfile=certfile,
-###                                        ca_certs=ca_certs,
-###                                        catchErrors=False,
-###                                        loggerObj=logger)
-###                if not tmmsConn.openConnection:
-###                    self.tmmsIsRunning = False
-###        except:
-###            tb = sys.exc_info()
-###
-###            # maybe output to stderr?
-###            traceback.print_exception(*tb,file=sys.stdout)
-###
-###            self.tmmsIsRunning = False
-###
-###        if self.tmmsIsRunning:
-###            logger.info("[%s] ... successful" % (threadName))
-###        else:
-###            logger.info("[%s] ... failed" % (threadName))
-###
-###        return tmmsConn
-###
-###
-###    def setTMMSPort(self,tmmsPort):
-###        self.tmmsPort = tmmsPort
-###
-###
-###    def setTMMSPid(self,tmmsPid):
-###        self.tmmsPid = tmmsPid
 
 
 
@@ -479,32 +156,14 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         ##cluster information
         self.cluster = {}	# {<hostID>: ServerProxy, ...}
 
-        ##all jobs {<jobID>: Job, ...}
-        #self.jobsDict = {}
-        #self.infoSockets = []
-        #self.logFiles = {}	# job specific logfiles: {<jobID>: logfile, ...}  dict of all logfiles
-
-        # each job undergoes the following steps and is assigned to different lists (the method which assigns the job to respective list is mentioned)
-        # added (by user) and registered (by TD) -> waitingJobs [TMS.setJobAsAdded]
-        # run (request by TMS to TMMS) -> pendingJobs [TMS.setJobAsSent]
-        # started (by TMMS) -> runningJobs [TMS.setJobAsStarted]
-        # finished (by TMMS) -> finishedJobs [TMS.setJobAsFinished]
-
-        #### jobsIDs of waiting jobs: jobs which are registered in TaskDispatcher for execution
-        ##self.waitingJobs = []
-        #### jobsIDs of pending jobs: jobs which execution on certain host has been directed by TaskDispatcher
-        ##self.pendingJobs = []
-        #### jobsIDs of running jobs: jobs which are currently executed
-        ##self.runningJobs = []
-        #### jobsIDs of finished jobs: jobs which has been finished
-        ##self.finishedJobs = []
-
         self.persistent=persistent		# if True, do not shutdown TMS
         self.shutdownImmediatly = False		# if True, shutdown server anyway
 
         self.verboseMode = verboseMode
         self.logFileTMS = logFileTMS
 
+        # set interval for loop of calling loop functions
+        self.loopInterval = 5
 
         # start the server
         SocketServer.TCPServer.__init__(self, (self.host,self.port), handler)
@@ -555,23 +214,40 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
             sys.exit(0)
 
         
+    def serve_forever(self):
+        """!@brief overwrites serve_forever of SocketServer.TCPServer"""
+
+        ## check periodically the database in an own thread
+        l2 = threading.Thread( target=self.loopCheckDatabase )
+        l2.setDaemon( True )
+        l2.start()
+        
+        while True:
+            self.handle_request()
+
+            
+    def loopCheckDatabase( self ):
+        """! @brief this function is executed periodically """
+        
+        while True:
+            # instantiate new socket
+            clientSock = hSocket(sslConnection=self.sslConnection,
+                                 EOCString=self.EOCString,
+                                 certfile=certfile,
+                                 keyfile=keyfile,
+                                 ca_certs=ca_certs)
+
+            # connect to server itself
+            clientSock.initSocket( self.host, self.port )
+
+            ## send checkdatabase command
+            clientSock.send( "ping" )
+            clientSock.recv()
+            
+            # wait for self.loopInterval seconds
+            sleep( self.loopInterval )
             
 
-    ##def openTDConnection(self):
-    ##    """! @brief get existing connection or open a new (persistent) one"""
-    ##
-    ##    # check connection
-    ##    
-    ##    if not self.tdConnection:
-    ##        TMConnection(TaskDispatcherHost,
-    ##                     TaskDispatcherPort,
-    ##                     sslConnection=self.TMS.sslConnection,
-    ##                     keyfile=self.keyfile,
-    ##                     certfile=self.certfile,
-    ##                     ca_certs=self.ca_certs,
-    ##                     catchErrors=False,
-    ##                     loggerObj=logger)
-        
     def sendCommandToTaskDispatcher( self, command ):
         """! @brief send command to TaskDispatcher and receive response
 
@@ -592,27 +268,6 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         return response
         
         
-    #def checkJobID(self,jobID):
-    #    """!check if job with jobID is already known by this TMS"""
-    #
-    #    # jobID: "USER.TD_ID.TMS_ID.JOB_ID"
-    #    jobIDSplitted = jobID.split('.')
-    #    user = join(jobIDSplitted[0:len(jobIDSplitted)-3])
-    #    user,tdID,tmsID,jID = jobID.split('.')
-    #
-    #    tmsID = int(tmsID)
-    #    if tmsID != self.ID:
-    #        # job comes from a different TMS
-    #        status = 0
-    #    elif jobID not in self.jobsDict:
-    #        # job comes from this TMS but is unknown
-    #        status = 1
-    #    else:
-    #        # job is known by this TMS
-    #        status = 2
-    #
-    #    return status
-
     def setHost(self,host):
         """!set host where TMS is running
         @param port host of TMS"""
@@ -637,11 +292,13 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         """
 
         self.databaseIDs = dict( dbcon.query( db.JobStatus.name, db.JobStatus.id ).all() )
-        
-    def printStatus(self):
-        """!@brief print status of server to stdout"""
 
-        #dbconnection = hDBConnection( self.dbconnection.ScopedSession )
+    def getClusterStatus( self ):
+        """! @brief get status of cluster
+
+        return (list) [jobCounts, slotInfo]
+        """
+
         dbconnection = hDBConnection()
         
         # get all number of jobs for each status type for user
@@ -663,6 +320,15 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         if slotInfo[0]==0:
             slotInfo = (0, 0, 0)
             
+        dbconnection.remove()
+
+        return [counts,slotInfo]
+        
+    def printStatus(self):
+        """!@brief print status of server to stdout"""
+
+        counts,slotInfo = self.getClusterStatus()
+        
         print "----------------------------"
         logger.info( "Status of TaskManagerServer on {h}:{p} of user {u}".format(t=str(datetime.now()), h=self.host, p=self.port, u=self.user) )
         print
@@ -674,151 +340,7 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         print "{s:>20} : {value}".format(s="finished jobs", value=counts.get('finished',0) )
         print "----------------------------"
 
-        dbconnection.remove()
 
-    ##def setJobAs(self,jobID,newStatus):
-    ##    """!
-    ##    @brief set status of job with jobID and add to respective list
-    ##
-    ##    @param newStatus new Status of job
-    ##    @param jobID jobID of job"""
-    ##
-    ##    job = self.jobsDict.get(jobID,None)
-    ##    if job:
-    ##        currStatus = job.getStatus()
-    ##
-    ##        if newStatus == "added":
-    ##            job.setAsAdded()
-    ##            self.waitingJobs.append(jobID)
-    ##        elif newStatus == "pending":
-    ##            self.removeJobFromJobList(jobID,currStatus)
-    ##            job.setAsPending()
-    ##            self.pendingJobs.append(jobID)
-    ##        elif newStatus == "running":
-    ##            self.removeJobFromJobList(jobID,currStatus)
-    ##            job.setAsRunning()
-    ##            self.runningJobs.append(jobID)
-    ##        elif newStatus == "finished":
-    ##            self.removeJobFromJobList(jobID,currStatus)
-    ##            job.setAsFinished()
-    ##            self.finishedJobs.append(jobID)
-    ##
-    ##
-    ##def removeJobFromJobList(self,jobID,status):
-    ##    """!
-    ##    @brief remove job from job list
-    ##
-    ##    @param jobID job id
-    ##    @param status current job status
-    ##    """
-    ##    statusListMapping = {
-    ##        "added": self.waitingJobs,
-    ##        "pending": self.pendingJobs,
-    ##        "running": self.runningJobs,
-    ##        "finished": self.finishedJobs,
-    ##        }
-    ##    try:
-    ##        statusListMapping[status].remove(jobID)
-    ##    except:
-    ##        pass
-
-    ##def addJob(self,
-    ##           jobID,
-    ##           command = "",
-    ##           jobInfo = "",
-    ##           logFile = None,
-    ##           shell = "",
-    ##           TaskDispatcherHost = "",
-    ##           TaskDispatcherPort = ""
-    ##           ):
-    ##    """!
-    ##    @brief add job to jobDict dictinary and waitingJobs list
-    ##
-    ##    @param command command line,
-    ##    @param jobInfo job info,
-    ##    @param logFile file for logging output of job,
-    ##    @param shell shell for execution,
-    ##    @param TaskDispatcherHost host of TaskDispatcher,
-    ##    @param TaskDispatcherPort port of TaskDispatcher
-    ##    """
-    ##
-    ##    # instantiate new job
-    ##    self.jobsDict[jobID] = Job()
-    ##    self.jobsDict[jobID].jobID = jobID
-    ##    self.jobsDict[jobID].setJobInfo(
-    ##        command = command,
-    ##        jobInfo = jobInfo,
-    ##        logFile = logFile,
-    ##        shell = shell,
-    ##        TaskDispatcherHost = TaskDispatcherHost,
-    ##        TaskDispatcherPort = TaskDispatcherPort
-    ##        )
-    ##    self.setJobAs(jobID,"added")
-
-    ##def addUnknownJob(self,jobID):
-    ##    """!add job which jobID is unkown. Due to delayed response from TD this information hasn't been stored.
-    ##    @param jobID id of job"""
-    ##    self.unknownJobs[jobID] = Job()
-
-    #def registerJob(self,preJobID,jobID):
-    #    """!
-    #    @brief register job with preJobID under jobID
-    #
-    #    @param preJobID preliminary jobID
-    #    @param jobID new job id
-    #    @return True: successful, False: failed
-    #    """
-    #
-    #    job = self.jobsDict.pop(preJobID,None)
-    #    if job:
-    #        self.jobsDict[jobID] = job
-    #        self.jobsDict[jobID].setAsRegistered()
-    #        try:
-    #            self.addedJobs.pop(preJobID)
-    #        except:
-    #            pass
-    #        self.waitingJobs.append(jobID)
-    #
-    #    #uJob = self.unknownJobs.pop(jobID,None)
-    #    #if uJob:
-    #    #    # job has already been cleared by TD for execution
-    #    #    self.jobsDict[jobID] = uJob
-    #    #    self.jobsDict[jobID].setAsRegistered()
-    #    #    self.waitingJobs.append(jobID)
-    #    #else:
-    #    #    job = self.jobsDict.pop(preJobID,None)
-    #    #    if job:
-    #    #        self.jobsDict[jobID] = job
-    #    #        self.jobsDict[jobID].setAsRegistered()
-    #    #        self.addedJobs.pop(preJobID,None)
-    #    #        self.waitingJobs.append(jobID)
-
-    #def setJobAsSent(self,jobID):
-    #    """!set job with jobID as clear to sent to host
-    #    @param jobID id of job which is sent to host"""
-    #    self.jobsDict[jobID].setAs
-
-    ##def removeJob(self,jobID):
-    ##    """!remove job with jobID from all lists and dictinaries
-    ##    @param jobID id of job which should be removed
-    ##    @return indicator whether job was known"""
-    ##
-    ##    try:
-    ##        self.jobsDict.pop(jobID)
-    ##
-    ##        # loop over all job lists and try to remove job
-    ##        jobLists = [self.waitingJobs,self.pendingJobs,self.runningJobs,self.finishedJobs]
-    ##        for l in jobLists:
-    ##            try:
-    ##                l.pop(l.index(jobID))
-    ##            except:
-    ##                pass
-    ##
-    ##        succ = True
-    ##    except:
-    ##        pass
-    ##
-    ##    return succ
 
         
 # The RequestHandler handles an incoming request.
@@ -913,14 +435,6 @@ class TaskManagerServerHandler(SocketServer.BaseRequestHandler):
 
         self.TMS.printStatus()
         
-        ##logger.info("---------status--------------")
-        ##logger.info("number of current threads: %s" % ( threading.activeCount()-1) )
-        ##logger.info("number of waiting jobs: %s" % ( len(self.TMS.waitingJobs)))
-        ##logger.info("number of pending jobs: %s" % ( len(self.TMS.pendingJobs)))
-        ##logger.info("number of running jobs: %s" % ( len(self.TMS.runningJobs)))
-        ##logger.info("number of finished jobs: %s" % ( len(self.TMS.finishedJobs)))
-        ##logger.info("-----------------------------")
-
         # closing socket
         try:
             hSock.close()
@@ -963,6 +477,14 @@ class TaskManagerServerProcessor(object):
                                            regExp = 'addjobs:(.*)',
                                            help = "add severla jobs at once to TMS.")
         
+        self.commands["SETALLPJOBSASWAITING"] = hCommand(command_name = 'setallpjobsaswaiting',
+                                                         regExp = '^setallpjobsaswaiting$',
+                                                         help = "set all pending jobs as waiting. free occupied slots on hosts.")
+        
+        self.commands["SETALLPJOBSASFINISHED"] = hCommand(command_name = 'setallpjobsasfinished',
+                                                         regExp = '^setallpjobsasfinished$',
+                                                         help = "set all pending jobs as finished. free occupied slots on hosts.")
+        
         self.commands["SETPERSISTENT"] = hCommand(command_name = 'setpersistent',
                                                   regExp = '^setpersistent$',
                                                   help = "set socket connection persistent, i.e. do not close socket")
@@ -972,17 +494,24 @@ class TaskManagerServerProcessor(object):
                                                    help = "unset socket connection persistent, i.e. do not close socket")
         
 
-
-
-        self.commands["GETTMSINFO"] = hCommand(command_name = 'gettmsinfo',
-                                              regExp = '^gettmsinfo$',
-                                              help = "return task manager server info")
+        self.commands["SETINTERVAL"] = hCommand( command_name = "setinterval",
+                                                 arguments = "<TIME>",
+                                                 regExp = "^setinterval:(.*)",
+                                                 help = "set interval in seconds for loop checking the database")
         
+        self.commands["PRINTSERVERINFO"] = hCommand(command_name = 'printserverinfo',
+                                               regExp = '^printserverinfo$',
+                                               help = "return info about task manager server and taskdispatcher.")
+        
+        self.commands["GETTMSINFO"] = hCommand(command_name = 'gettmsinfo',
+                                               regExp = '^gettmsinfo$',
+                                               help = "return task manager server info")
 
         self.commands["GETTDINFO"] = hCommand(command_name = 'gettdinfo',
                                              regExp = '^gettdinfo$',
-                                             help = "return task dispatcher host and port")
-        
+                                             help = "return task dispatcher info")
+
+
         
         self.commands["GETTDSTATUS"] = hCommand(command_name = 'gettdstatus',
                                                regExp = '^gettdstatus$',
@@ -1096,8 +625,8 @@ class TaskManagerServerProcessor(object):
                                                help = "get all events since epoch")
         
         self.commands["SHUTDOWN"] = hCommand(command_name = 'shutdown',
-                                            regExp = '^shutdown$',
-                                            help = "shutdown TMS")
+                                             regExp = '^shutdown$',
+                                             help = "shutdown TMS")
 
 
     def process(self, receivedStr, request, persistentSocket, TMS):
@@ -1217,6 +746,17 @@ class TaskManagerServerProcessor(object):
             request.send("connection has been set unpersistent")
             persistentSocket = False
 
+        # set interval for loop
+        elif self.commands['SETINTERVAL'].re.match( requestStr ):
+            c = self.commands["SETINTERVAL"]
+            
+            interval = int( c.re.match( requestStr ).groups()[0] )
+
+            # update value
+            TD.loopInterval = interval
+
+            request.send('done.')
+            
         #  get task dispatcher host and port
         elif self.commands["GETTDINFO"].re.match(receivedStr):
             request.send("%s:%s" % (TDHost,TDPort))
@@ -1232,11 +772,30 @@ class TaskManagerServerProcessor(object):
                 traceback.print_exc(file=sys.stderr)
                 request.send("Could not connect to TaskDispatcher.")
 
-        #  get task manager server info
-        elif self.commands["GETTMSINFO"].re.match(receivedStr):
-            request.send("%s:%s:%s" % (self.TMS.startTime,
-                                       len(self.TMS.runningJobs),
-                                       (len(self.TMS.jobsDict)-len(self.TMS.runningJobs))))
+        #  get info about task manager server and taskdispatcher
+        elif self.commands["PRINTSERVERINFO"].re.match(receivedStr):
+
+            tdstatus = self.TMS.sendCommandToTaskDispatcher( "gettdstatus" )
+            tdstatus = json.loads(tdstatus)
+            
+            jobCounts, slotInfo = self.TMS.getClusterStatus()
+
+            response = ""
+            response += "Status of TaskManagerServer on {h}:{p} of user {u}\n".format(t=str(datetime.now()), h=self.TMS.host, p=self.TMS.port, u=self.TMS.user)
+            response += "\n"
+            response += "{s:>35} : {value}\n".format(s="tms running since", value=self.TMS.startTime )
+            response += "{s:>35} : {value}\n".format(s="taskdispatcher host", value=TDHost )
+            response += "{s:>35} : {value}\n".format(s="taskdispatcher port", value=TDPort )
+            response += "{s:>35} : {value}\n".format(s="taskdispatcher activity status", value=tdstatus['activity status'] )
+            response += "{s:>35} : {value}\n".format(s="active hosts", value=slotInfo[0] )
+            response += "{s:>35} : {value}\n".format(s="occupied slots", value="{occupied} / {total}".format(occupied=slotInfo[2],total=slotInfo[1]) )
+            response += "\n"
+            response += "{s:>35} : {value}\n".format(s="waiting jobs", value=jobCounts.get('waiting',0) )
+            response += "{s:>35} : {value}\n".format(s="pending jobs", value=jobCounts.get('pending',0) )
+            response += "{s:>35} : {value}\n".format(s="running jobs", value=jobCounts.get('running',0) )
+            response += "{s:>35} : {value}\n".format(s="finished jobs", value=jobCounts.get('finished',0) )
+
+            request.send( response )
 
         #  get active hosts in cluster
         elif self.commands["LSACTIVECLUSTER"].re.match(receivedStr):
@@ -1558,7 +1117,7 @@ class TaskManagerServerProcessor(object):
             logfile = jsonInObj['logfile']
             shell = jsonInObj['shell']
             priority = jsonInObj['priority']
-            excludedHosts = jsonInObj.get("excludedHosts",[])
+            excludedHosts = jsonInObj.get("excludedHosts","")
             user = self.TMS.info['user']
 
             logger.info('[%s] ... send job to TD' % threadName)
@@ -1583,6 +1142,7 @@ class TaskManagerServerProcessor(object):
 
             try:
                 jobID = self.TMS.sendCommandToTaskDispatcher( com )
+
                 response = "Job [{id}] has been submitted to TaskDispatcher.\nSo long, and thanks for all the fish.".format(id=jobID)
                 request.send( response )
             except:
@@ -1597,40 +1157,26 @@ class TaskManagerServerProcessor(object):
             jsonInObj = c.re.match(receivedStr).groups()[0]
             jsonInObj = json.loads(jsonInObj)
 
-            command = jsonInObj['command']
-            infoText = jsonInObj['infoText']
-            group = jsonInObj['group']
-            stdout = jsonInObj['stdout']
-            stderr = jsonInObj['stderr']
-            logfile = jsonInObj['logfile']
-            shell = jsonInObj['shell']
-            priority = jsonInObj['priority']
-            excludedHosts = jsonInObj.get("excludedHosts",[])
             user = self.TMS.info['user']
-
-            logger.info('[%s] ... send job to TD' % threadName)
+            jobs = jsonInObj	# list of dictinaries
 
             # register job at TaskDispatcher
-            jsonOutObj =  { 'TMSHost': self.TMS.info['host'],
+            jsonOutObj =  { 'user': user,
+                            'TMSHost': self.TMS.info['host'],
                             'TMSPort': self.TMS.info['port'],
                             'TMSID': self.TMS.ID,
-                            'infoText': infoText,
-                            'group': group,
-                            'command': command,
-                            'shell': shell,
-                            'stdout': stdout,
-                            'stderr': stderr,
-                            'logfile': logfile,
-                            'user': user,
-                            'priority': priority,
-                            'excludedHosts': excludedHosts}
+                            'jobs': jobs }
+
+            logger.info('[%s] ... send jobs to TD' % threadName)
 
             jsonOutObj = json.dumps(jsonOutObj)
-            com = "addjob:%s" % jsonOutObj
+            com = "addjobs:%s" % jsonOutObj
 
             try:
-                jobID = self.TMS.sendCommandToTaskDispatcher( com )
-                response = "Job [{id}] has been submitted to TaskDispatcher.\nSo long, and thanks for all the fish.".format(id=jobID)
+                jobIDs = self.TMS.sendCommandToTaskDispatcher( com )
+                jobIDs = json.loads( jobIDs )
+                
+                response = "Jobs {ids} have been submitted to TaskDispatcher.\nSo long, and thanks for all the fish.".format(ids=jobIDs)
                 request.send( response )
             except:
                 traceback.print_exc(file=sys.stderr)
@@ -1789,133 +1335,133 @@ class TaskManagerServerProcessor(object):
             ##
             ##    return persistentSocket,waitForNextRequest
 
-        #  suspend a certain job
-        elif self.commands["SUSPENDJOB"].re.match(receivedStr):
-            c = self.commands["SUSPENDJOB"]
-
-            computer,PID = c.re.match(receivedStr).groups()
-            self.suspendJob(computer,PID)
-
-            # change status of job
-
-        #  resume a certain job
-        elif self.commands["RESUMEJOB"].re.match(receivedStr):
-            c = self.commands["RESUMEJOB"]
-
-            computer,PID = re.match('resumejob:(.*):(.*)', receivedStr).groups()
-            self.resumeJob(computer,PID)
-
-            # change status of job
-
-
-        #  send killing request to TMMS
-        elif self.commands["KILLJOB"].re.match(receivedStr):
-            c = self.commands["KILLJOB"]
-            jobID = c.re.match(receivedStr).groups()[0]
-
-            if jobID not in self.TMS.jobsDict:
-                logger.info("unkown job to kill: %s" % (jobID))
-                ret = "Job unknown!"
-            else:
-                # get host and port of TMMS
-                tmmsHost = self.TMS.jobsDict[jobID].getJobInfo('host')
-                tmmsPort = self.TMS.cluster[tmmsHost].tmmsPort
-
-                t = killJobs([jobID],tmmsHost,tmmsPort,self.TMS)
-                t.start()
-                t.join()
-
-                ret = t.ret
-
-            request.send(ret)
-
-
-        #    send killing request to TMMS
-        elif self.commands["KILLJOBS"].re.match(receivedStr):
-            c = self.commands["KILLJOBS"]
-
-            jobIDs = c.re.match(receivedStr).groups()[0]
-            jobIDs = jobIDs.split(":")
-
-            hostList = {}
-            for jobID in jobIDs:
-                if jobID in self.TMS.jobsDict:
-                    # get host and port of TMMS
-                    tmmsHost = self.TMS.jobsDict[jobID].getJobInfo('host')
-                    tmmsPort = self.TMS.cluster[tmmsHost].tmmsPort
-
-                    if tmmsHost in hostList:
-                        hostList[tmmsHost]['jobIDs'].append(jobID)
-                    else:
-                        hostList[tmmsHost] = {'tmmsPort':tmmsPort, 'jobIDs':[jobID]}
-
-            threadList = []
-            for tmmshHost,l in hostList.iteritems():
-                tmmsPort = l['tmmsPort']
-                jobIDs = l['jobIDs']
-
-                current = killJobs(jobIDs,tmmsHost,tmmsPort,self.TMS)
-                threadList.append(current)
-                current.start()
-
-            # wait until all jobs on every tmms has been killed
-            for t in threadList:
-                t.join()
-
-            request.send("Jobs has been killed.")
-
-
-        #    kill all jobs with match the given string
-        elif self.commands["KILLMATCHINGJOBS"].re.match(receivedStr):
-            c = self.commands["KILLMATCHINGJOBS"]
-            matchString = c.re.match(receivedStr).groups()[0]
-
-            m = re.compile(matchString)
-
-            hostList = {}
-            for jobID,jobInfo in self.TMS.jobsDict.iteritems():
-                if m.search(jobInfo.getJobInfo('jobInfo')):
-                    # get host and port of TMMS
-                    tmmsHost = self.TMS.jobsDict[jobID].getJobInfo('host')
-                    tmmsPort = self.TMS.cluster[tmmsHost].tmmsPort
-
-                    if tmmsHost in hostList:
-                        hostList[tmmsHost]['jobIDs'].append(jobID)
-                    else:
-                        hostList[tmmsHost] = {'tmmsPort':tmmsPort, 'jobIDs':[jobID]}
-
-            threadList = []
-            for tmmshHost,l in hostList.iteritems():
-                tmmsPort = l['tmmsPort']
-                jobIDs = l['jobIDs']
-
-                current = killJobs(jobIDs,tmmsHost,tmmsPort,self.TMS)
-                threadList.append(current)
-                current.start()
-
-            # wait until all jobs on every tmms has been killed
-            for t in threadList:
-                t.join()
-
-            request.send("Jobs has been killed.")
-
-
-        #  send killing request to TMMS
-        elif self.commands["KILLALLJOBS"].re.match(receivedStr):
-            hostList = []
-            for hostName in self.TMS.cluster:
-                tmmsPort = self.TMS.cluster[hostName].tmmsPort
-
-                current = killAllJobs(hostName,tmmsPort,self.TMS)
-                hostList.append(current)
-                current.start()
-
-            # wait until all jobs on every tmms has been killed
-            for h in hostList:
-                h.join()
-
-
-            request.send("done")
+        #####  suspend a certain job
+        ####elif self.commands["SUSPENDJOB"].re.match(receivedStr):
+        ####    c = self.commands["SUSPENDJOB"]
+        ####
+        ####    computer,PID = c.re.match(receivedStr).groups()
+        ####    self.suspendJob(computer,PID)
+        ####
+        ####    # change status of job
+        ####
+        #####  resume a certain job
+        ####elif self.commands["RESUMEJOB"].re.match(receivedStr):
+        ####    c = self.commands["RESUMEJOB"]
+        ####
+        ####    computer,PID = re.match('resumejob:(.*):(.*)', receivedStr).groups()
+        ####    self.resumeJob(computer,PID)
+        ####
+        ####    # change status of job
+        ####
+        ####
+        #####  send killing request to TMMS
+        ####elif self.commands["KILLJOB"].re.match(receivedStr):
+        ####    c = self.commands["KILLJOB"]
+        ####    jobID = c.re.match(receivedStr).groups()[0]
+        ####
+        ####    if jobID not in self.TMS.jobsDict:
+        ####        logger.info("unkown job to kill: %s" % (jobID))
+        ####        ret = "Job unknown!"
+        ####    else:
+        ####        # get host and port of TMMS
+        ####        tmmsHost = self.TMS.jobsDict[jobID].getJobInfo('host')
+        ####        tmmsPort = self.TMS.cluster[tmmsHost].tmmsPort
+        ####
+        ####        t = killJobs([jobID],tmmsHost,tmmsPort,self.TMS)
+        ####        t.start()
+        ####        t.join()
+        ####
+        ####        ret = t.ret
+        ####
+        ####    request.send(ret)
+        ####
+        ####
+        #####    send killing request to TMMS
+        ####elif self.commands["KILLJOBS"].re.match(receivedStr):
+        ####    c = self.commands["KILLJOBS"]
+        ####
+        ####    jobIDs = c.re.match(receivedStr).groups()[0]
+        ####    jobIDs = jobIDs.split(":")
+        ####
+        ####    hostList = {}
+        ####    for jobID in jobIDs:
+        ####        if jobID in self.TMS.jobsDict:
+        ####            # get host and port of TMMS
+        ####            tmmsHost = self.TMS.jobsDict[jobID].getJobInfo('host')
+        ####            tmmsPort = self.TMS.cluster[tmmsHost].tmmsPort
+        ####
+        ####            if tmmsHost in hostList:
+        ####                hostList[tmmsHost]['jobIDs'].append(jobID)
+        ####            else:
+        ####                hostList[tmmsHost] = {'tmmsPort':tmmsPort, 'jobIDs':[jobID]}
+        ####
+        ####    threadList = []
+        ####    for tmmshHost,l in hostList.iteritems():
+        ####        tmmsPort = l['tmmsPort']
+        ####        jobIDs = l['jobIDs']
+        ####
+        ####        current = killJobs(jobIDs,tmmsHost,tmmsPort,self.TMS)
+        ####        threadList.append(current)
+        ####        current.start()
+        ####
+        ####    # wait until all jobs on every tmms has been killed
+        ####    for t in threadList:
+        ####        t.join()
+        ####
+        ####    request.send("Jobs has been killed.")
+        ####
+        ####
+        #####    kill all jobs with match the given string
+        ####elif self.commands["KILLMATCHINGJOBS"].re.match(receivedStr):
+        ####    c = self.commands["KILLMATCHINGJOBS"]
+        ####    matchString = c.re.match(receivedStr).groups()[0]
+        ####
+        ####    m = re.compile(matchString)
+        ####
+        ####    hostList = {}
+        ####    for jobID,jobInfo in self.TMS.jobsDict.iteritems():
+        ####        if m.search(jobInfo.getJobInfo('jobInfo')):
+        ####            # get host and port of TMMS
+        ####            tmmsHost = self.TMS.jobsDict[jobID].getJobInfo('host')
+        ####            tmmsPort = self.TMS.cluster[tmmsHost].tmmsPort
+        ####
+        ####            if tmmsHost in hostList:
+        ####                hostList[tmmsHost]['jobIDs'].append(jobID)
+        ####            else:
+        ####                hostList[tmmsHost] = {'tmmsPort':tmmsPort, 'jobIDs':[jobID]}
+        ####
+        ####    threadList = []
+        ####    for tmmshHost,l in hostList.iteritems():
+        ####        tmmsPort = l['tmmsPort']
+        ####        jobIDs = l['jobIDs']
+        ####
+        ####        current = killJobs(jobIDs,tmmsHost,tmmsPort,self.TMS)
+        ####        threadList.append(current)
+        ####        current.start()
+        ####
+        ####    # wait until all jobs on every tmms has been killed
+        ####    for t in threadList:
+        ####        t.join()
+        ####
+        ####    request.send("Jobs has been killed.")
+        ####
+        ####
+        #####  send killing request to TMMS
+        ####elif self.commands["KILLALLJOBS"].re.match(receivedStr):
+        ####    hostList = []
+        ####    for hostName in self.TMS.cluster:
+        ####        tmmsPort = self.TMS.cluster[hostName].tmmsPort
+        ####
+        ####        current = killAllJobs(hostName,tmmsPort,self.TMS)
+        ####        hostList.append(current)
+        ####        current.start()
+        ####
+        ####    # wait until all jobs on every tmms has been killed
+        ####    for h in hostList:
+        ####        h.join()
+        ####
+        ####
+        ####    request.send("done")
 
 
         ###  info from TMMS about a started job
@@ -2054,7 +1600,7 @@ class TaskManagerServerProcessor(object):
 
             jsonInObj = c.re.match(receivedStr).groups()[0]
             jsonInObj = json.loads(jsonInObj)
-            #
+
             hostID = jsonInObj['hostID']
             hostName = jsonInObj['hostName']
             #tmmsPort = int(jsonInObj['tmmsPort'])
@@ -2075,6 +1621,57 @@ class TaskManagerServerProcessor(object):
             #self.TMS.cluster[hostName].setTMMSPort(tmmsPort)
             #self.TMS.cluster[hostName].setTMMSPid(tmmsPid)
 
+
+
+        elif self.commands["SETALLPJOBSASWAITING"].re.match( receivedStr ):
+            pJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( and_(db.Job.user_id==self.TMS.userID,
+                                                                                    db.JobDetails.job_status_id==self.TMS.databaseIDs['pending'] ) ).all()
+
+            for job in pJobs:
+                # free occupied slots from host
+                dbconnection.query( db.HostSummary ).\
+                  filter( db.HostSummary.host_id==job.job_details.host_id ).\
+                  update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots - job.slots } )
+
+                # set job as waiting
+                dbconnection.query( db.JobDetails.job_id ).\
+                  filter( db.JobDetails.job_id==job.id ).\
+                  update( {db.JobDetails.job_status_id: self.TMS.databaseIDs['waiting'] } )
+
+                # set history
+                jobHistory = db.JobHistory( job=job,
+                                            job_status_id = self.TMS.databaseIDs['waiting'] )
+
+                dbconnection.introduce( jobHistory )
+
+            dbconnection.commit()
+
+        elif self.commands["SETALLPJOBSASFINISHED"].re.match( receivedStr ):
+            pJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( and_(db.Job.user_id==self.TMS.userID,
+                                                                                    db.JobDetails.job_status_id==self.TMS.databaseIDs['pending'] ) ).all()
+
+            for job in pJobs:
+                # free occupied slots from host
+                dbconnection.query( db.HostSummary ).\
+                  filter( db.HostSummary.host_id==job.job_details.host_id ).\
+                  update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots - job.slots } )
+
+                # set job as waiting
+                dbconnection.query( db.JobDetails.job_id ).\
+                  filter( db.JobDetails.job_id==job.id ).\
+                  update( {db.JobDetails.job_status_id: self.TMS.databaseIDs['finished'] } )
+
+                # set history
+                jobHistory = db.JobHistory( job=job,
+                                            job_status_id = self.TMS.databaseIDs['finished'] )
+
+                dbconnection.introduce( jobHistory )
+
+            dbconnection.commit()
+
+
+
+
         elif self.commands["LSHISTORY"].re.match(receivedStr):
             c = self.commands["LSHISTORY"]
 
@@ -2087,33 +1684,33 @@ class TaskManagerServerProcessor(object):
             
         #  termination is requested
         elif self.commands["SHUTDOWN"].re.match(receivedStr):
-            # kill all jobs
-
-            hostList = {}	# {<hostName>: {'tmmsPort': <port>, 'jobIDs':[<jobID1>,...]}}
-            # loop over all jobs and assign jobIDs to hosts
-            for jobID,job in self.TMS.jobsDict.iteritems():
-                # get host and port of TMMS
-                tmmsHost = job.getJobInfo('host')
-                tmmsPort = self.TMS.cluster[tmmsHost].tmmsPort
-
-                # append jobID to host
-                if tmmsHost in hostList:
-                    hostList[tmmsHost]['jobIDs'].append(jobID)
-                else:
-                    hostList[tmmsHost] = {'tmmsPort':tmmsPort, 'jobIDs':[jobID]}
-
-            threadList = []
-            for tmmshHost,l in hostList.iteritems():
-                tmmsPort = l['tmmsPort']
-                jobIDs = l['jobIDs']
-
-                current = killJobs(jobIDs,tmmsHost,tmmsPort,self.TMS)
-                threadList.append(current)
-                current.start()
-
-            # wait until all jobs on every tmms has been killed
-            for t in threadList:
-                t.join()
+            #### kill all jobs
+            ###
+            ###hostList = {}	# {<hostName>: {'tmmsPort': <port>, 'jobIDs':[<jobID1>,...]}}
+            #### loop over all jobs and assign jobIDs to hosts
+            ###for jobID,job in self.TMS.jobsDict.iteritems():
+            ###    # get host and port of TMMS
+            ###    tmmsHost = job.getJobInfo('host')
+            ###    tmmsPort = self.TMS.cluster[tmmsHost].tmmsPort
+            ###
+            ###    # append jobID to host
+            ###    if tmmsHost in hostList:
+            ###        hostList[tmmsHost]['jobIDs'].append(jobID)
+            ###    else:
+            ###        hostList[tmmsHost] = {'tmmsPort':tmmsPort, 'jobIDs':[jobID]}
+            ###
+            ###threadList = []
+            ###for tmmshHost,l in hostList.iteritems():
+            ###    tmmsPort = l['tmmsPort']
+            ###    jobIDs = l['jobIDs']
+            ###
+            ###    current = killJobs(jobIDs,tmmsHost,tmmsPort,self.TMS)
+            ###    threadList.append(current)
+            ###    current.start()
+            ###
+            #### wait until all jobs on every tmms has been killed
+            ###for t in threadList:
+            ###    t.join()
 
             ## send deleting request to taskdispatcher
             #jobIDs = TMS.jobsDict.keys()

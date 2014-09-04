@@ -232,7 +232,7 @@ class hSocket:
                 #traceback.print_exc(file=sys.stderr)
                 #sys.stderr.write("-------------------------\n")
             else:
-                #sys.sterr.write("-----------error not catched\n")
+                sys.stderr.write("-----------error not catched\n")
                 raise
 
     def close(self):

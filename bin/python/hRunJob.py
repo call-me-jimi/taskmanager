@@ -65,9 +65,15 @@ if __name__ == '__main__':
                         nargs = '*',
                         metavar = 'COMMAND',
                         help = "Command which will be sent to the server." )    
+    parser.add_argument("-c", "--slots",
+                        metavar = "SLOTS",
+                        dest = "slots",
+                        type = int,
+                        default = 1,
+                        help = "Number cores on a host which will be used for this job." )
     parser.add_argument("-E", "--excludeHosts",
                         metavar = "HOST[,HOST,...]",
-                        dest = "excludeHosts",
+                        dest = "excludedHosts",
                         default = "",
                         help = "Exclude computers from cluster for calculating given job. Consider option -H for a cluster overview." )
     parser.add_argument("-f", "--jobsFile",
@@ -133,13 +139,7 @@ if __name__ == '__main__':
     ####################################
     # send requests to TMS
     
-    command = join(args.command,' ')
-
-    if args.showStatus:
-        print "%25s: %s" % ("Taskmanager path",tmpath)
-        print "%25s: %s" % ("Shell",args.shell)
-        print
-
+    args.command = join(args.command,' ')
 
     TMS = hServerProxy( user = user,
                         serverType = 'TMS',
@@ -155,13 +155,14 @@ if __name__ == '__main__':
         sys.stderr.write("Could not start a TMS!\n")
         sys.exit(-1)
 
-    setPersistent = False
+    TMS.sendAndRecv("setpersistent")
+
+    requests = []
     
     # assemble requests
     if args.showStatus:
-        jobs = ['gettmsinfo','gettdstatus']
-        TMS.sendAndRecv("setpersistent")
-        setPersistent = True
+        requests = ['printserverinfo']
+        
     #elif options.killTMS:
     #    jobs = ['shutdown']
     #elif options.jobID:
@@ -182,36 +183,74 @@ if __name__ == '__main__':
     else:
         if args.jobsFile:
             # send several jobs at once
-            jsonObj = { 'shell': args.shell,
-                        'priority': args.priority,
-                        'excludedHosts': args.excludeHosts.split(','),
-                        'user': user,
-                        'jobs': [] }
+            jsonObj = {  }
 
             with open(args.jobsFile,'r') as f:
+                jobs = []
+                
+                # known fields
+                requiredFields = [ "command", "slots", "group", "infoText", "logfile", "stdout", "stderr", "shell", "priority", "excludedHosts" ]
+                # construct regular expressions
+                reRequiredFields = { field: re.compile( "^{field}::(.*)$".format(field=field) ) for field in requiredFields }
+
+                # iterate over all lines in file. add only 100 jobs at once
                 for idx,line in enumerate(f):
+                    line = line.strip('\n')
+                    
+                    jobDetails = {}
+                    
                     try:
-                        # neglect those lines with a leading '#'
-                        if line[0] == '#': continue
+                        # neglect lines with a leading '#' and empty lines
+                        if line[0] == '#' or line=="": continue
                         
-                        group, infoText, command, logFile, stdoutFile, stderrFile = line.strip('\n').split( '\t' )
-                        
+                        # parse line
+                        lineSplitted = line.split( '\t' )
+
+                        jobDetails = {}
+                        #iterate over all known fields and add value to jobDetails
+                        # not really good style here!!!
+                        for field,reField in reRequiredFields.iteritems():
+                            found = False
+                            # iterate over all entries in line
+                            for entry in lineSplitted:
+                                m = reField.match( entry )
+                                if m:
+                                    d = m.groups()[0]
+                                    
+                                    jobDetails[ field ] = d.format( idx=idx )
+                                    found = True
+                                    break
+
+                            if not found:
+                                # field value is not specified for current job
+                                # use values given as command line argument (given in args)
+                                jobDetails[ field ] = getattr(args, field)
+
+                        # at least command has to be specified
+                        if jobDetails['command']:
+                            jobs.append( jobDetails )
                     except:
                         # read next row
+                        #traceback.print_exc(file=sys.stdout)
                         continue
 
-                    jsonObj['jobs'].append( {'command': command,
-                                             'infoText': infoText.format(idx=idx) if infoText else args.infoText+" "+str(idx) if args.infoText else '',
-                                             'group': group if group else args.group,
-                                             'stdout': stdoutFile.format(idx=idx) if stdoutFile else args.stdout+"_"+str(idx) if args.stdout else '',
-                                             'stderr': stderrFile.format(idx=idx) if stderrFile else args.stderr+"_"+str(idx) if args.stderr else '',
-                                             'logfile': logFile.format(idx=idx) if logFile else args.logfile+"_"+str(idx) if args.logfile else '' } )
-                jsonObj = json.dumps(jsonObj)
-                
-            jobs = ['addjobs:%s' % jsonObj]
+
+                    # add maximal 100 jobs to a single request
+                    if idx>0 and idx % 100 == 1:
+                        # add jobs
+                        jsonObj = json.dumps( jobs )
+                        requests.append( 'addjobs:%s' % jsonObj )
+                        jobs = []
+
+                if jobs:
+                    print "add last jobs"
+                    jsonObj = json.dumps( jobs )
+                    requests.append( 'addjobs:%s' % jsonObj )
+
         else:
             # send a single job
-            jsonObj = {'command': command,
+            jsonObj = {'command': args.command,
+                       'slots': args.slots,
                        'infoText': args.infoText,
                        'group': args.group,
                        'stdout': args.stdout,
@@ -219,69 +258,26 @@ if __name__ == '__main__':
                        'logfile': args.logfile,
                        'shell': args.shell,
                        'priority': args.priority,
-                       'excludedHosts': args.excludeHosts.split(','),
-                       'user': user }
+                       'excludedHosts': args.excludedHosts }
 
             jsonObj = json.dumps(jsonObj)
 
-            jobs = ['addjob:%s' % jsonObj]
+            requestsa.append('addjob:%s' % jsonObj)
 
-
-    pprint( jobs )
-    asdkfj
     #send commands to TMS
     try:
-        for i,job in enumerate(jobs):
-            
-            TMS.send(job)
-            recv = TMS.recv()
-
-            if recv and args.showStatus:
-                ## show status of TMS and TD
+        for i,job in enumerate(requests):
+            try:
+                TMS.send(job)
+                recv = TMS.recv()
                 
-                recvSplit = recv.split(':')
-                
-                if i==0:	# gettmsinfo TMS info
-                    print "%25s: %s" % ("TMS host",TMS.host)
-                    print "%25s: %s" % ("TMS port",TMS.port)
-                    if TMS.started:
-                        print "%25s: (new) %s" % ("running since",recvSplit[0])
-                    else:
-                        print "%25s: %s" % ("running since",recvSplit[0])
-                    print "%25s: %s" % ("running jobs in TMS",recvSplit[1])
-                    print "%25s: %s" % ("waiting jobs in TMS",recvSplit[2])
-                    print
-                elif i==1:	# gettdinfo TD info
-                    print recvSplit
-                    #print "%25s: %s" % ("TaskDispatcher host", recvSplit[0])
-                    #print "%25s: %s" % ("TaskDispatcher port", recvSplit[1])
-                elif i==2:	# gettdstatus TD status
-                    print recvSplit
-                    ##print "%25s: %s" % ("connection status",recvSplit[0])
-                    #if len(recvSplit)==6:
-                    #    print "%25s: %s" % ("running since",recvSplit[0])
-                    #    print "%25s: %s" % ("total CPUs", recvSplit[2])
-                    #    print "%25s: %s" % ("free CPUs", recvSplit[1])
-                    #    print "%25s: %s" % ("running jobs",recvSplit[3])
-                    #    print "%25s: %s" % ("waiting jobs",recvSplit[4])
-                    #    print "%25s: %s" % ("finished jobs",recvSplit[5])
-                    #else:
-                    #    print "%25s: %s" % ("connection status","failed!")
-                        
-                    
-            #elif args.killTMS:
-            #    print "TaskManagerServer %s:%s was killed" % (TMS.host,TMS.port)
-                
-            else: 
-                ## usual request to TMS
+                # print response
                 if not args.quiet:
                     print recv
-                
-                pass
+            except:
+                traceback.print_exc(file=sys.stdout)
 
-        if setPersistent:
-            TMS.sendAndRecv("unsetpersistent")
-            
+        TMS.sendAndRecv("unsetpersistent")
         TMS.close()
         
     except socket.error,msg: 

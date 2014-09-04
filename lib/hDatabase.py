@@ -8,6 +8,13 @@ from sqlalchemy import create_engine
  
 Base = declarative_base()
 
+class TaskDispatcherDetails(Base):
+    __tablename__ = 'taskdispatcher_details'
+
+    id = Column( Integer, primary_key=True )
+    last_job_status_update = Column( DateTime, default = datetime.datetime.now )
+
+
 ## @brief association between user and role
 #
 class AssociationUserRole(Base):
@@ -55,6 +62,7 @@ class JobStatus( Base ):
 ## @brief Job
 #
 # backrefs: job_history --> JobHistory
+#           excluded_hosts --> Host
 class Job( Base ):
     __tablename__ = 'job'
 
@@ -69,7 +77,7 @@ class Job( Base ):
     stderr = Column( String(256) )
     logfile = Column( String(256) )
     #job_details_id = Column( Integer, ForeignKey( 'job_details.id' ) )
-    excluded_hosts = Column( String(1024), default='[]' )
+    excluded_hosts = Column( String(1024), default='[]' )	# json representation of a list of host's full names
     slots = Column( Integer, default=1 )
     
     user = relationship( 'User' )
@@ -105,6 +113,7 @@ class JobHistory( Base ):
     job_id = Column( Integer, ForeignKey( 'job.id' ) )
     datetime = Column( DateTime, default = datetime.datetime.now )
     job_status_id = Column( Integer, ForeignKey( 'job_status.id' ) )
+    checked  = Column( Boolean, default=False )
     
     job = relationship( 'Job', backref="job_history" )
     job_status = relationship( 'JobStatus' )
