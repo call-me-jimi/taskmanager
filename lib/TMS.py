@@ -503,15 +503,6 @@ class TaskManagerServerProcessor(object):
                                                regExp = '^printserverinfo$',
                                                help = "return info about task manager server and taskdispatcher.")
         
-        self.commands["GETTMSINFO"] = hCommand(command_name = 'gettmsinfo',
-                                               regExp = '^gettmsinfo$',
-                                               help = "return task manager server info")
-
-        self.commands["GETTDINFO"] = hCommand(command_name = 'gettdinfo',
-                                             regExp = '^gettdinfo$',
-                                             help = "return task dispatcher info")
-
-
         
         self.commands["GETTDSTATUS"] = hCommand(command_name = 'gettdstatus',
                                                regExp = '^gettdstatus$',
@@ -529,11 +520,6 @@ class TaskManagerServerProcessor(object):
                                                    regExp = '^laactivecluster$',
                                                    help = "return (formated) information about active cluster")
         
-        self.commands["GETJOBSTATUS"] = hCommand(command_name = 'getjobstatus',
-                                                arguments = '<jobID>',
-                                                regExp = 'getjobstatus:(.*)',
-                                                help = "return status of job with given jobID")
-        
         self.commands["LSWJOBS"] = hCommand(command_name = 'lswjobs',
                                            regExp = '^lswjobs$',
                                            help = "return waiting jobs")
@@ -550,15 +536,15 @@ class TaskManagerServerProcessor(object):
                                            regExp = 'lsfjobs',
                                            help = "return finished jobs")
         
-        self.commands["LSJOBINFO"] = hCommand(command_name = 'lsjobinfo',
-                                             arguments = "<jobID>",
-                                             regExp = 'lsjobinfo:(.*)',
-                                             help = "return job info of job with given jobID")
+        self.commands["LSJOB"] = hCommand(command_name = 'lsjob',
+                                          arguments = "<jobID>",
+                                          regExp = 'lsjob:(.*)',
+                                          help = "return job info about job with given jobID")
         
-        self.commands["LSMATCHINGJOBS"] = hCommand(command_name = 'lsmatchingjobs',
-                                                  arguments = "<matchString>",
-                                                  regExp = 'lsmatchingjobs:(.*)',
-                                                  help = "return all jobs which match the search string")
+        self.commands["FINDJOBS"] = hCommand(command_name = 'findjobs',
+                                            arguments = "<matchString>",
+                                            regExp = 'findjobs:(.*)',
+                                            help = "return all jobs which match the search string in command, info text and group.")
         
         ##self.commands["ADDJOB"] = hCommand(command_name = 'addjob',
         ##                                  arguments = "<infoText>:<command>:<logFile>:<shell>:<priority>",
@@ -696,9 +682,7 @@ class TaskManagerServerProcessor(object):
                 "LSTHREADS",
                 "SETPERSISTENT",
                 "UNSETPERSISTENT",
-                "GETTDINFO",
                 "GETTDSTATUS",
-                "GETTMSINFO",
                 "LSACTIVECLUSTER",
                 "LAACTIVECLUSTER",
                 "SHUTDOWN"
@@ -710,13 +694,11 @@ class TaskManagerServerProcessor(object):
 
             # job commands
             l = [
-                "GETJOBSTATUS",
                 "LSWJOBS",
                 "LSPJOBS",
                 "LSRJOBS",
                 "LSFJOBS",
-                "LSJOBINFO",
-                "LSMATCHINGJOBS",
+                "FINDJOBS",
                 "ADDJOB",
                 "SUSPENDJOB",
                 "RESUMEJOB",
@@ -733,8 +715,8 @@ class TaskManagerServerProcessor(object):
 
 
         #  get list of active threads
-        #elif self.commands["LSTHREADS"].re.match(receivedStr):
-        #    request.send(join(map(lambda t: t.getName(),threading.enumerate()),"\n"))
+        elif self.commands["LSTHREADS"].re.match(receivedStr):
+            request.send(join(map(lambda t: t.getName(),threading.enumerate()),"\n"))
 
         #  set socket connection persistent, i.e. do not close socket
         elif self.commands["SETPERSISTENT"].re.match(receivedStr):
@@ -747,7 +729,7 @@ class TaskManagerServerProcessor(object):
             persistentSocket = False
 
         # set interval for loop
-        elif self.commands['SETINTERVAL'].re.match( requestStr ):
+        elif self.commands['SETINTERVAL'].re.match(receivedStr):
             c = self.commands["SETINTERVAL"]
             
             interval = int( c.re.match( requestStr ).groups()[0] )
@@ -757,10 +739,6 @@ class TaskManagerServerProcessor(object):
 
             request.send('done.')
             
-        #  get task dispatcher host and port
-        elif self.commands["GETTDINFO"].re.match(receivedStr):
-            request.send("%s:%s" % (TDHost,TDPort))
-
         #  get status of task dispatcher
         elif self.commands["GETTDSTATUS"].re.match(receivedStr):
             com = "gettdstatus"
@@ -840,16 +818,6 @@ class TaskManagerServerProcessor(object):
                     request.send("no info")
             else:
                 request.send("Connection to TD failed")
-
-        #  get status of job with given jobID
-        elif self.commands["GETJOBSTATUS"].re.match(receivedStr):
-            c = self.commands["GETJOBSTATUS"]
-
-            jobID = c.re.match(receivedStr).groups()[0]
-            if jobID in self.TMS.jobsDict:
-                request.send("Job is still waiting or running.")
-            else:
-                request.send("Unknown or finished job.")
 
         #  get waiting jobs
         elif self.commands["LSWJOBS"].re.match(receivedStr):
@@ -952,22 +920,39 @@ class TaskManagerServerProcessor(object):
             dbconnection.remove()
                 
         #  get job info of job with given jobID
-        elif self.commands["LSJOBINFO"].re.match(receivedStr):
-            c = self.commands["LSJOBINFO"]
+        elif self.commands["LSJOB"].re.match(receivedStr):
+            c = self.commands["LSJOB"]
 
             jobID = c.re.match(receivedStr).groups()[0]
 
-            if jobID in self.TMS.jobsDict:
-                ## Job instance
-                job = self.TMS.jobsDict[jobID]
-                infoDict = {
-                    "status": job.status,
-                    "command": job.jobInfo["command"],
-                    "job info": job.jobInfo["jobInfo"]
-                    }
-                info = ["status: {status}".format(**infoDict),
-                        "command: {command}".format(**infoDict)]
-                request.send(join(info,"\n"))
+            # connect to database
+            dbconnection = hDBConnection()
+            
+            job = dbconnection.query( db.Job ).get( int(jobID) )
+
+            if job:
+                response = ""
+                response += "{s:>20} : {value}\n".format(s="job id", value=job.id )
+                response += "{s:>20} : {value}\n".format(s="command", value=job.command )
+                response += "{s:>20} : {value}\n".format(s="info text", value=job.info_text )
+                response += "{s:>20} : {value}\n".format(s="group", value=job.group )
+                response += "{s:>20} : {value}\n".format(s="stdout", value=job.stdout )
+                response += "{s:>20} : {value}\n".format(s="stderr", value=job.stderr )
+                response += "{s:>20} : {value}\n".format(s="logfile", value=job.logfile )
+                response += "{s:>20} : {value}\n".format(s="excludedHosts", value=job.excluded_hosts )
+                response += "{s:>20} : {value}\n".format(s="slots", value=job.slots )
+                
+                for idx,hist in enumerate(job.job_history):
+                    if idx==0: s = "status"
+                    else: s=""
+                    
+                    response += "{s:>20} : [{t}] {status}\n".format(s=s, t=str(hist.datetime), status=hist.job_status.name )
+                    
+                response += "{s:>20} : {value}\n".format(s="host", value=job.job_details.host.short_name )
+                response += "{s:>20} : {value}\n".format(s="pid", value=job.job_details.pid )
+                response += "{s:>20} : {value}\n".format(s="return code", value=job.job_details.return_code )
+
+                request.send( response )
             else:
                 request.send("unkown job.")
 
