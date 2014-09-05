@@ -219,7 +219,7 @@ class hHostLoad(Thread):
                 stdOut = tempfile.TemporaryFile( bufsize=0 )
                 stdErr = tempfile.TemporaryFile( bufsize=0 )
 
-                com = 'ssh -x -a %s "cat /proc/loadavg"' % (self.host)
+                com = 'ssh -x -a -oConnectTimeout=1 -oConnectionAttempts=1 %s "cat /proc/loadavg"' % (self.host)
                 sp = subprocess.Popen(com, 
                                       shell=True, 
                                       stdout=stdOut, 
@@ -234,6 +234,7 @@ class hHostLoad(Thread):
                 if not sp.returncode and len(out)>0:
                     load = map(float, out[0].strip('\n').split(" ")[:3] )
             except:
+                print "ERROR"
                 pass
 
         return load

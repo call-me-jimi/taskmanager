@@ -42,7 +42,7 @@ import traceback
 import exceptions
 import json
 import textwrap
-from sqlalchemy import and_, not_, func
+from sqlalchemy import and_, or_, not_, func
 from sqlalchemy.orm.exc import NoResultFound
 
 homedir = os.environ['HOME']
@@ -545,6 +545,20 @@ class TaskManagerServerProcessor(object):
                                             arguments = "<matchString>",
                                             regExp = 'findjobs:(.*)',
                                             help = "return all jobs which match the search string in command, info text and group.")
+
+        self.commands["LSGROUP"] = hCommand(command_name = 'lsgroup',
+                                            arguments = "<group name>",
+                                            regExp = 'lsgroup:(.*)',
+                                            help = "return info about jobs of a group.")
+        
+        self.commands["LSGROUPS"] = hCommand(command_name = 'lsgroups',
+                                            regExp = 'lsgroups',
+                                            help = "return info about jobs of all known groups.")
+
+        self.commands["HASGROUPFINISHED"] = hCommand(command_name = 'hasgroupfinished',
+                                            regExp = 'hasgroupfinished:(.*)',
+                                            help = "return info about jobs of all known groups.")
+        
         
         ##self.commands["ADDJOB"] = hCommand(command_name = 'addjob',
         ##                                  arguments = "<infoText>:<command>:<logFile>:<shell>:<priority>",
@@ -698,6 +712,8 @@ class TaskManagerServerProcessor(object):
                 "LSPJOBS",
                 "LSRJOBS",
                 "LSFJOBS",
+                "LSGROUP",
+                "LSGROUPS",
                 "FINDJOBS",
                 "ADDJOB",
                 "SUSPENDJOB",
@@ -998,22 +1014,115 @@ class TaskManagerServerProcessor(object):
             ##else:
             ##    request.send("Connection to TD failed")
 
+        #  get info about jobs of group
+        elif self.commands["LSGROUP"].re.match(receivedStr):
+            c = self.commands["LSGROUP"]
+
+            groupName = c.re.match(receivedStr).groups()[0]
+
+            # connect to database
+            dbconnection = hDBConnection()
+
+            # get all number of jobs for each status type for user
+            counts = dict( dbconnection.query( db.JobStatus.name, func.count('*') ).\
+                           join( db.JobDetails, db.JobDetails.job_status_id==db.JobStatus.id ).\
+                           join( db.Job, db.Job.id==db.JobDetails.job_id ).\
+                           filter( and_(db.Job.user_id==self.TMS.userID, db.Job.group==groupName) ).\
+                           group_by( db.JobStatus.name ).\
+                           all() )
+
+            finished = counts.get('finished',0)
+            all = counts.get('waiting',0) + counts.get('pending',0) + counts.get('running',0) + counts.get('finished',0)
+
+            if all!= 0:
+                progress = 1.0 * finished/all
+
+                response = ""
+                response += "{s:>20} : {value}\n".format(s="group", value=groupName )
+                response += "{s:>20} : {value}\n".format(s="waiting jobs", value=counts.get('waiting',0) )
+                response += "{s:>20} : {value}\n".format(s="pending jobs", value=counts.get('pending',0) )
+                response += "{s:>20} : {value}\n".format(s="running jobs", value=counts.get('running',0) )
+                response += "{s:>20} : {value}\n".format(s="finished jobs", value=counts.get('finished',0) )
+
+
+                response += "{s:>20} : {value:.2%}\n".format(s="progress", value=progress )
+
+                request.send( response )
+            else:
+                request.send( "group is unknown" )
+
+
+        elif self.commands["LSGROUPS"].re.match(receivedStr):
+            c = self.commands["LSGROUPS"]
+
+            # connect to database
+            dbconnection = hDBConnection()
+
+            groupNames = dbconnection.query( db.Job.group ).filter( db.Job.user_id==self.TMS.userID ).distinct().all()
+            print "GROUP NAMES",groupNames
+            response = ""
+            for groupName, in groupNames:
+                # get all number of jobs for each status type for user
+                counts = dict( dbconnection.query( db.JobStatus.name, func.count('*') ).\
+                               join( db.JobDetails, db.JobDetails.job_status_id==db.JobStatus.id ).\
+                               join( db.Job, db.Job.id==db.JobDetails.job_id ).\
+                               filter( and_(db.Job.user_id==self.TMS.userID, db.Job.group==groupName) ).\
+                               group_by( db.JobStatus.name ).\
+                               all() )
+
+                finished = counts.get('finished',0)
+                all = counts.get('waiting',0) + counts.get('pending',0) + counts.get('running',0) + counts.get('finished',0)
+
+                if all!= 0:
+                    progress = 1.0 * finished/all
+
+                    response += "{s:>20} : {value}\n".format(s="group", value=groupName )
+                    response += "{s:>20} : {value}\n".format(s="waiting jobs", value=counts.get('waiting',0) )
+                    response += "{s:>20} : {value}\n".format(s="pending jobs", value=counts.get('pending',0) )
+                    response += "{s:>20} : {value}\n".format(s="running jobs", value=counts.get('running',0) )
+                    response += "{s:>20} : {value}\n".format(s="finished jobs", value=counts.get('finished',0) )
+                    response += "{s:>20} : {value:.2%}\n".format(s="progress", value=progress )
+                    response += "\n"
+
+
+            if response:
+                request.send( response )
+            else:
+                request.send( "no groups found" )
 
 
         #  get all jobs with match the search string
-        elif self.commands["LSMATCHINGJOBS"].re.match(receivedStr):
-            c = self.commands["LSMATCHINGJOBS"]
+        elif self.commands["FINDJOBS"].re.match(receivedStr):
+            c = self.commands["FINDJOBS"]
 
             matchString = c.re.match(receivedStr).groups()[0]
 
-            m = re.compile(matchString)
+            # connect to database
+            dbconnection = hDBConnection()
 
-            jobList = []
-            for jobID,jobInfo in self.TMS.jobsDict.iteritems():
-                if m.search(jobInfo.getJobInfo('jobInfo')):
-                    jobList.append(jobID)
+            jobs = dbconnection.query( db.Job ).filter( or_(db.Job.command.ilike( '%{s}%'.format(s=matchString) ),
+                                                            db.Job.info_text.ilike( '%{s}%'.format(s=matchString) ),
+                                                            db.Job.group.ilike( '%{s}%'.format(s=matchString) ) ) ).all()
+            
 
-            request.send( self.formatJobList(jobList) )
+            response = ""
+            for idx,job in enumerate(jobs):
+                response += "{i} - [jobid:{id}] [status:{status}] [group:{group}] [info:{info}] [command:{command}{dots}]\n".format( i=idx,
+                                                                                                                                     id=job.id,
+                                                                                                                                     status=job.job_details.job_status.name,
+                                                                                                                                     group=job.group,
+                                                                                                                                     info=job.info_text,
+                                                                                                                                     command=job.command[:30],
+                                                                                                                                     dots="..." if len(job.command)>30 else "" )
+
+            if response:
+                request.send( response )
+            else:
+                request.send("no jobs found")
+
+            dbconnection.remove()
+
+            
 
         #  add job to TMS and then to task dispatcher
         ##elif TMS.commands["ADDJOB"].re.match(receivedStr):
@@ -1094,16 +1203,16 @@ class TaskManagerServerProcessor(object):
             jsonInObj = c.re.match(receivedStr).groups()[0]
             jsonInObj = json.loads(jsonInObj)
 
-            command = jsonInObj['command']
-            infoText = jsonInObj['infoText']
-            group = jsonInObj['group']
-            stdout = jsonInObj['stdout']
-            stderr = jsonInObj['stderr']
-            logfile = jsonInObj['logfile']
-            shell = jsonInObj['shell']
-            priority = jsonInObj['priority']
-            excludedHosts = jsonInObj.get("excludedHosts","")
             user = self.TMS.info['user']
+            command = jsonInObj['command']
+            shell = jsonInObj['shell']
+            infoText = jsonInObj.get('infoText','')
+            group = jsonInObj.get('group','')
+            stdout = jsonInObj.get('stdout','')
+            stderr = jsonInObj.get('stderr','')
+            logfile = jsonInObj.get('logfile','')
+            priority = jsonInObj.get('priority', 1)
+            excludedHosts = jsonInObj.get("excludedHosts","")
 
             logger.info('[%s] ... send job to TD' % threadName)
 

@@ -482,7 +482,7 @@ class TaskDispatcher(SocketServer.TCPServer):
 
              # update load in database
              host = hostsDict[ p.host ]
-             
+
              # get all HostLoad instances attached to Host
              hostLoads = dbconnection.query( db.HostLoad ).join( db.Host ).filter( db.Host.id==host.id ).order_by( db.HostLoad.datetime ).all()
 
@@ -492,7 +492,7 @@ class TaskDispatcher(SocketServer.TCPServer):
                  if len(hostLoads)>4:
                      # delete oldest one
                      dbconnection.delete( hostLoads[0] )
-                     
+
                  # create new HostLoad instance
                  hostLoad = db.HostLoad( host = host,
                                          loadavg_1min = p.load[0],
