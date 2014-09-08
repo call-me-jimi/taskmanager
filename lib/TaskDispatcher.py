@@ -12,6 +12,7 @@ from time import time, localtime, strftime, sleep
 from random import choice
 from string import join,strip
 from copy import copy
+from collections import defaultdict
 from threading import Thread, Lock
 import xml.dom.minidom
 import traceback
@@ -513,7 +514,7 @@ class TaskDispatcher(SocketServer.TCPServer):
         """
 
         dbconnection = hDBConnection()
-        
+
         # get next waiting job in queue
         if excludedJobIDs:
             #job = self.dbconnection.query( db.Job ).join( db.CurrentJobStatus ).filter( and_( db.CurrentJobStatus.job_status_type_id==self.databaseIDs['waiting'], not_(db.CurrentJobStatus.job_id.in_(excludedJobIDs) ) ) ).order_by( db.CurrentJobStatus.id ).limit(1).all()
@@ -530,6 +531,32 @@ class TaskDispatcher(SocketServer.TCPServer):
             # no job was found
             None
 
+    def getNextJobs( self, numJobs=1, excludedJobIDs=set([]) ):
+        """! @brief get next jobs which will be send to cluster 
+
+        @param numJobs (int) maximal number of jobs which will be returned
+        @param excludedJobIDs (set) set of jobIDs which should not be considered
+
+        @todo think about something more sophisticated than just taking the next in queue
+        """
+
+        dbconnection = hDBConnection()
+        
+        # get next waiting job in queue
+        if excludedJobIDs:
+            #job = self.dbconnection.query( db.Job ).join( db.CurrentJobStatus ).filter( and_( db.CurrentJobStatus.job_status_type_id==self.databaseIDs['waiting'], not_(db.CurrentJobStatus.job_id.in_(excludedJobIDs) ) ) ).order_by( db.CurrentJobStatus.id ).limit(1).all()
+            jobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( and_( db.JobDetails.job_status_id==self.databaseIDs['waiting'], not_(db.Job.id.in_(excludedJobIDs) ) ) ).order_by( db.Job.id ).limit( numJobs ).all()
+        else:
+            #job = self.dbconnection.query( db.Job ).join( db.CurrentJobStatus ).filter( db.CurrentJobStatus.job_status_type_id==self.databaseIDs['waiting'] ).order_by( db.CurrentJobStatus.id ).limit(1).all()
+            jobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==self.databaseIDs['waiting'] ).order_by( db.Job.id ).limit( numJobs ).all()
+            
+        if jobs:
+            # return job id
+            return [ j.id for j in jobs ]
+        else:
+            # no job was found
+            None
+
         
     def getVacantHost( self, slots, excludedHosts=set([]) ):
         """! @brief get vacant host which is not in excludedHosts and has at least slots unused slots
@@ -537,12 +564,12 @@ class TaskDispatcher(SocketServer.TCPServer):
         @param slots (int) minimum number of free slots on vacant host
         @param excludedHosts (set) set of full names of host which should be excluded
 
-        @return hostID or None
+        @return (hostID,hostName)
         """
 
         dbconnection = hDBConnection()
         
-        logger.info( "... find vacant host ..." )
+        logger.info( "Find vacant host ..." )
         
         if excludedHosts:
             hosts = dbconnection.query( db.Host ). \
@@ -598,7 +625,7 @@ class TaskDispatcher(SocketServer.TCPServer):
         """! @brief check jobs whether they have finished since last check
         """
 
-        logger.info( "updating job status..." )
+        logger.info( "Updating job status..." )
         logger.info( "  acquire lock ...")
 
         # aquire lock
@@ -611,8 +638,11 @@ class TaskDispatcher(SocketServer.TCPServer):
         taskDispatcherDetails = dbconnection.query( db.TaskDispatcherDetails ).one()
         jobHistories = dbconnection.query( db.JobHistory ).filter( and_(db.JobHistory.datetime >= taskDispatcherDetails.last_job_status_update,
                                                                         db.JobHistory.checked == False) ).all()
+        slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
+        
         taskDispatcherDetails.last_job_status_update = datetime.now()
-                            
+
+        occupiedSlots = defaultdict( int )
         for jobHistory in jobHistories:
             if jobHistory.job_status_id == self.databaseIDs['finished']:
                 jobID = jobHistory.job_id
@@ -621,13 +651,16 @@ class TaskDispatcher(SocketServer.TCPServer):
                 # get Job instance
                 job = dbconnection.query( db.Job ).get( jobID )
 
-                # free occupied slots on host
-                dbconnection.query( db.HostSummary ).\
-                  filter( db.HostSummary.host_id==job.job_details.host_id ).\
-                  update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots - job.slots } )
+                occupiedSlots[ job.job_details.host_id ] += job.slots
 
                 # set checked flag
                 jobHistory.checked = True
+
+        # free occupied slots on host
+        for h in occupiedSlots:
+            dbconnection.query( db.HostSummary ).\
+                                filter( db.HostSummary.host_id==h ).\
+                                update( { db.HostSummary.number_occupied_slots: slots[ h ] - occupiedSlots[ h ] } )
 
         dbconnection.commit()
         
@@ -725,80 +758,95 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
             
             t1 = datetime.now()
 
-            getNextJob = True
-            while getNextJob:
-                logger.info( "get next job to be executed ..." )
 
-                # get next job to be ready to be sent to associate tms
-                jobID = self.TD.getNextJob( excludedJobIDs=self.TD.lockedJobs )
+            slotInfo = dbconnection.query( func.count('*'),
+                                           func.sum( db.Host.max_number_occupied_slots ), 
+                                           func.sum( db.HostSummary.number_occupied_slots ) ).select_from( db.Host ).join( db.HostSummary, db.HostSummary.host_id==db.Host.id ).filter( db.HostSummary.active==True ).one()
+            freeSlots = slotInfo[1] - slotInfo[2]
+            logger.info( "Free slots: {n}".format(n=freeSlots) )
+            
+            if freeSlots>0:
+                getNextJobs = True
+            else:
+                getNextJobs = False
+                
+            while getNextJobs:
+                logger.info( "Get next job to be executed ..." )
 
-                if jobID:
-                    # add job to locked jobs, i.e., they are currently processed
-                    self.TD.lockedJobs.add( jobID )
+                # get next jobs ready to be sent to associate tms
+                jobIDs = self.TD.getNextJobs( numJobs=freeSlots, excludedJobIDs=self.TD.lockedJobs )
 
-                    # get Job instance
-                    job = dbconnection.query( db.Job ).get( jobID )
-                    user = job.user
+                if jobIDs:
+                    for jobID in jobIDs:
+                        # add job to locked jobs, i.e., they are currently processed
+                        self.TD.lockedJobs.add( jobID )
 
-                    logger.info( "... found job {i} of user {u}".format( i=jobID, u=user.name ) )
+                        # get Job instance
+                        job = dbconnection.query( db.Job ).get( jobID )
+                        user = job.user
 
-                    # get excluded hosts
-                    excludedHosts = json.loads( job.excluded_hosts )
+                        logger.info( "  found job {i} of user {u}".format( i=jobID, u=user.name ) )
 
-                    # get vacant host which has the necessary number of free slots
-                    vacantHost = self.TD.getVacantHost( job.slots, excludedHosts=set( excludedHosts) )
+                        # get excluded hosts
+                        excludedHosts = json.loads( job.excluded_hosts )
 
-                    if vacantHost:
-                        logger.info( "run job {j} of user {u} on {h}".format(j=jobID, u=user.name, h=vacantHost[1] ) )
+                        # get vacant host which has the necessary number of free slots
+                        vacantHost = self.TD.getVacantHost( job.slots, excludedHosts=set( excludedHosts) )
 
-                        try:
-                            # send jobID to tms
-                            sock = hSocket(host=user.tms_host,
-                                           port=user.tms_port,
-                                           EOCString=self.TD.EOCString,
-                                           sslConnection=self.TD.sslConnection,
-                                           certfile=certfile,
-                                           keyfile=keyfile,
-                                           ca_certs=ca_certs,
-                                           catchErrors=False)
+                        if vacantHost:
+                            logger.info( "  run job {j} of user {u} on {h}".format(j=jobID, u=user.name, h=vacantHost[1] ) )
 
-                            if sock:
-                                # set job as pending
-                                dbconnection.query( db.JobDetails.job_id ).\
-                                  filter( db.JobDetails.job_id==jobID ).\
-                                  update( {db.JobDetails.job_status_id: self.TD.databaseIDs['pending']} )
+                            try:
+                                # send jobID to tms
+                                sock = hSocket(host=user.tms_host,
+                                               port=user.tms_port,
+                                               EOCString=self.TD.EOCString,
+                                               sslConnection=self.TD.sslConnection,
+                                               certfile=certfile,
+                                               keyfile=keyfile,
+                                               ca_certs=ca_certs,
+                                               catchErrors=False)
+
+                                if sock:
+                                    # set job as pending
+                                    dbconnection.query( db.JobDetails.job_id ).\
+                                      filter( db.JobDetails.job_id==jobID ).\
+                                      update( { db.JobDetails.job_status_id: self.TD.databaseIDs['pending'],
+                                                db.JobDetails.host_id: vacantHost[0] } )
 
 
-                                # reduce slots in host
-                                dbconnection.query( db.HostSummary ).\
-                                  filter( db.HostSummary.host_id==vacantHost[0] ).\
-                                  update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots+job.slots })
+                                    # reduce slots in host
+                                    dbconnection.query( db.HostSummary ).\
+                                      filter( db.HostSummary.host_id==vacantHost[0] ).\
+                                      update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots+job.slots })
 
-                                # set history
-                                jobHistory = db.JobHistory( job=job,
-                                                            job_status_id = self.TD.databaseIDs['pending'] )
+                                    # set history
+                                    jobHistory = db.JobHistory( job=job,
+                                                                job_status_id = self.TD.databaseIDs['pending'] )
 
-                                dbconnection.introduce( jobHistory )
+                                    dbconnection.introduce( jobHistory )
 
-                                dbconnection.commit()
+                                    dbconnection.commit()
 
-                                # set job to tms
-                                jsonObj = json.dumps( { 'jobID': jobID,
-                                                        'hostID': vacantHost[0],
-                                                        'hostName': vacantHost[1] })
-                                sock.send( 'runjob:{j}'.format( j=jsonObj ) )
-                            
+                                    # set job to tms
+                                    jsonObj = json.dumps( { 'jobID': jobID,
+                                                            'hostID': vacantHost[0],
+                                                            'hostName': vacantHost[1] })
+                                    sock.send( 'runjob:{j}'.format( j=jsonObj ) )
 
-                        except socket.error,msg:
-                            logger.info( "... failed [{h}:{p}]: {m}".format(h=user.tms_host, p=user.tms_port, m=msg) )
+                                    freeSlots -= job.slots
+
+
+                            except socket.error,msg:
+                                logger.info( "... failed [{h}:{p}]: {m}".format(h=user.tms_host, p=user.tms_port, m=msg) )
                     else:
-                        getNextJob = False
+                        getNextJobs = False
 
                     # remove job from locked ids
                     self.TD.lockedJobs.remove( jobID )
                     
                 else:
-                    getNextJob = False
+                    getNextJobs = False
                     logger.info( '... no jobs.' )
                     
 
@@ -905,7 +953,19 @@ class TaskDispatcherRequestProcessor(object):
         self.commands["SETALLPJOBSASFINISHED"] = hCommand(command_name = 'setallpjobsasfinished',
                                                          regExp = '^setallpjobsasfinished$',
                                                          help = "set all pending jobs as finished. free occupied slots on hosts.")
+        
+        self.commands["SETALLRJOBSASWAITING"] = hCommand(command_name = 'setallrjobsaswaiting',
+                                                         regExp = '^setallrjobsaswaiting$',
+                                                         help = "set all running jobs as waiting. free occupied slots on hosts.")
+        
+        self.commands["SETALLRJOBSASFINISHED"] = hCommand(command_name = 'setallrjobsasfinished',
+                                                         regExp = '^setallrjobsasfinished$',
+                                                         help = "set all running jobs as finished. free occupied slots on hosts.")
 
+        self.commands["REMOVEALLJOBSOFUSER"] = hCommand(command_name = 'removealljobsofuser',
+                                                        arguments = "<username>",
+                                                        regExp = '^removealljobsofuser:(.*)',
+                                                        help = "remove all jobs of user from database")
 
         
 
@@ -949,7 +1009,6 @@ class TaskDispatcherRequestProcessor(object):
                 except:
                     load = 'n.a.'
 
-                print "host.host_summary.active",host.host_summary
                 hostInfo = { 'i': idx,
                              'name': host.short_name,
                              'status': 'active' if host.host_summary.active else 'reachable' if host.host_summary.reachable else 'available' if host.host_summary.available else 'not available',
@@ -1233,28 +1292,27 @@ class TaskDispatcherRequestProcessor(object):
 
             request.send( "{n} jobs".format(n=len(jobs)) )
                 
-        elif self.commands["PROCESSFINISHED"].re.match( requestStr ):
-            c = self.commands["PROCESSFINISHED"]
-
-            jobID = c.re.match( requestStr ).groups()[0]
-            job = dbconnection.query( db.Job ).get( jobID )
-
-            # free occupied slots from host
-            dbconnection.query( db.HostSummary ).\
-              filter( db.HostSummary.host_id==job.job_details.host_id ).\
-              update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots - job.slots } )
-
-            dbconnection.commit()
+        ##elif self.commands["PROCESSFINISHED"].re.match( requestStr ):
+        ##    c = self.commands["PROCESSFINISHED"]
+        ##
+        ##    jobID = c.re.match( requestStr ).groups()[0]
+        ##    job = dbconnection.query( db.Job ).get( jobID )
+        ##
+        ##    # free occupied slots from host
+        ##    dbconnection.query( db.HostSummary ).\
+        ##      filter( db.HostSummary.host_id==job.job_details.host_id ).\
+        ##      update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots - job.slots } )
+        ##
+        ##    dbconnection.commit()
             
         elif self.commands["SETALLPJOBSASWAITING"].re.match( requestStr ):
             pJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['pending'] ).all()
-
+            slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
+            
+            occupiedSlots = defaultdict( int )
             for job in pJobs:
-                # free occupied slots from host
-                dbconnection.query( db.HostSummary ).\
-                  filter( db.HostSummary.host_id==job.job_details.host_id ).\
-                  update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots - job.slots } )
-
+                occupiedSlots[ job.job_details.host_id ] += job.slots
+                
                 # set job as waiting
                 dbconnection.query( db.JobDetails.job_id ).\
                   filter( db.JobDetails.job_id==job.id ).\
@@ -1266,30 +1324,128 @@ class TaskDispatcherRequestProcessor(object):
 
                 dbconnection.introduce( jobHistory )
 
+            # free occupied slots from host
+            for h in occupiedSlots:
+                dbconnection.query( db.HostSummary ).\
+                  filter( db.HostSummary.host_id==h ).\
+                  update( { db.HostSummary.number_occupied_slots: slots[ h ] - occupiedSlots[ h ] } )
+
             dbconnection.commit()
 
+        elif self.commands["SETALLRJOBSASWAITING"].re.match( requestStr ):
+            rJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['running'] ).all()
+            slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
+
+            occupiedSlots = defaultdict( int )
+            for job in rJobs:
+                occupiedSlots[ job.job_details.host_id ] += job.slots
+                
+                # set job as waiting
+                dbconnection.query( db.JobDetails.job_id ).\
+                  filter( db.JobDetails.job_id==job.id ).\
+                  update( {db.JobDetails.job_status_id: TD.databaseIDs['waiting'] } )
+
+                # set history
+                jobHistory = db.JobHistory( job=job,
+                                            job_status_id = TD.databaseIDs['waiting'] )
+
+                dbconnection.introduce( jobHistory )
+
+            # free occupied slots from host
+            for h in occupiedSlots:
+                dbconnection.query( db.HostSummary ).\
+                  filter( db.HostSummary.host_id==h ).\
+                  update( { db.HostSummary.number_occupied_slots: slots[ h ] - occupiedSlots[ h ] } )
+
+
+
+            dbconnection.commit()
+            
         elif self.commands["SETALLPJOBSASFINISHED"].re.match( requestStr ):
             pJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['pending'] ).all()
+            slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
 
+            occupiedSlots = defaultdict( int )
             for job in pJobs:
-                # free occupied slots from host
-                dbconnection.query( db.HostSummary ).\
-                  filter( db.HostSummary.host_id==job.job_details.host_id ).\
-                  update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots - job.slots } )
+                occupiedSlots[ job.job_details.host_id ] += job.slots
 
-                # set job as waiting
+                # set job as finished
                 dbconnection.query( db.JobDetails.job_id ).\
                   filter( db.JobDetails.job_id==job.id ).\
                   update( {db.JobDetails.job_status_id: TD.databaseIDs['finished'] } )
 
                 # set history
                 jobHistory = db.JobHistory( job=job,
-                                            job_status_id = TD.databaseIDs['finished'] )
+                                            job_status_id = TD.databaseIDs['finished'],
+                                            checked = True )
 
                 dbconnection.introduce( jobHistory )
 
+            # free occupied slots from host
+            for h in occupiedSlots:
+                dbconnection.query( db.HostSummary ).\
+                  filter( db.HostSummary.host_id==h ).\
+                  update( { db.HostSummary.number_occupied_slots: slots[ h ] - occupiedSlots[ h ] } )
+
             dbconnection.commit()
 
+        elif self.commands["SETALLRJOBSASFINISHED"].re.match( requestStr ):
+            rJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['running'] ).all()
+            slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
+
+            occupiedSlots = defaultdict( int )
+            for job in rJobs:
+                occupiedSlots[ job.job_details.host_id ] += job.slots
+
+                # set job as finished
+                dbconnection.query( db.JobDetails.job_id ).\
+                  filter( db.JobDetails.job_id==job.id ).\
+                  update( {db.JobDetails.job_status_id: TD.databaseIDs['finished'] } )
+
+                # set history
+                jobHistory = db.JobHistory( job=job,
+                                            job_status_id = TD.databaseIDs['finished'],
+                                            checked = True )
+
+                dbconnection.introduce( jobHistory )
+
+            # free occupied slots from host
+            for h in occupiedSlots:
+                dbconnection.query( db.HostSummary ).\
+                  filter( db.HostSummary.host_id==h ).\
+                  update( { db.HostSummary.number_occupied_slots: slots[ h ] - occupiedSlots[ h ] } )
+
+            dbconnection.commit()
+            
+        elif self.commands["REMOVEALLJOBSOFUSER"].re.match( requestStr ):
+            c = self.commands["REMOVEALLJOBSOFUSER"]
+            
+            user = c.re.match( requestStr ).groups()[0]
+            
+            jobs = dbconnection.query( db.Job ).join( db.User ).filter( db.User.name==user ).all()
+            slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
+
+            logger.info( "remove {j} of user {u}".format(j=len(jobs),u=user ) )
+            
+            occupiedSlots = defaultdict( int )
+            for job in jobs:
+                logger.info( "remove job {i}".format(i=job.id) )
+                if job.job_details.job_status_id in (TD.databaseIDs['pending'],TD.databaseIDs['running']):
+                    occupiedSlots[ job.job_details.host_id ] += job.slots
+
+                dbconnection.delete( job )
+                
+            # free occupied slots from host
+            for h in occupiedSlots:
+                dbconnection.query( db.HostSummary ).\
+                  filter( db.HostSummary.host_id==h ).\
+                  update( { db.HostSummary.number_occupied_slots: slots[ h ] - occupiedSlots[ h ] } )
+
+
+            dbconnection.commit()
+                
+            request.send( "removed {j} of user {u}.".format(j=len(jobs),u=user ) )
+            
         else:
             request.send("What do you want?")
 

@@ -81,7 +81,7 @@ class Job( Base ):
     slots = Column( Integer, default=1 )
     
     user = relationship( 'User' )
-    job_details = relationship( 'JobDetails', uselist=False, backref='job' )
+    job_details = relationship( 'JobDetails', uselist=False, backref='job', cascade="all, delete-orphan" )
     
     def __repr__( self ):
         return "Job [{id}] command: {c}".format( id=self.id, c=self.command )
@@ -115,7 +115,7 @@ class JobHistory( Base ):
     job_status_id = Column( Integer, ForeignKey( 'job_status.id' ) )
     checked  = Column( Boolean, default=False )
     
-    job = relationship( 'Job', backref="job_history" )
+    job = relationship( 'Job', backref=backref("job_history", cascade="all, delete-orphan") )
     job_status = relationship( 'JobStatus' )
                      
 
