@@ -483,49 +483,54 @@ class TaskManagerMenialServerProcessor:
 
             # write command, stdout, and stderr to a logfile
             if logFile:
-                f = open('%s' % logFile,'w')
+                try:
+                    f = open('%s' % logFile,'w')
 
-                f.write("-----------------------\n")
-                f.write("--------command--------\n")
-                f.write("-----------------------\n")
-                f.write("%s\n" %command)
-                f.write("\n")
-                f.write("-----------------------\n")
-                f.write("----------info---------\n")
-                f.write("-----------------------\n")
-                f.write("host: {0}\n".format(os.uname()[1]))
-                f.write("started: %s\n" % (startTime))
-                f.write("finished: %s\n" % (endTime))
-                f.write("\n")
+                    f.write("-----------------------\n")
+                    f.write("--------command--------\n")
+                    f.write("-----------------------\n")
+                    f.write("%s\n" %command)
+                    f.write("\n")
+                    f.write("-----------------------\n")
+                    f.write("----------info---------\n")
+                    f.write("-----------------------\n")
+                    f.write("host: {0}\n".format(os.uname()[1]))
+                    f.write("started: %s\n" % (startTime))
+                    f.write("finished: %s\n" % (endTime))
+                    f.write("\n")
 
-                f.write("-----------------------\n")
-                f.write("------BEGIN stdout-----\n")
-                f.write("-----------------------\n")
+                    f.write("-----------------------\n")
+                    f.write("------BEGIN stdout-----\n")
+                    f.write("-----------------------\n")
 
-                fOut.seek(0)
+                    fOut.seek(0)
 
-                for line in fOut:
-                    f.write("%s" % line)
+                    for line in fOut:
+                        f.write("%s" % line)
 
-                f.write("-----------------------\n")
-                f.write("------END stdout-------\n")
-                f.write("-----------------------\n")
-                
-                f.write("\n")
-                
-                f.write("-----------------------\n")
-                f.write("------BEGIN stderr-----\n")
-                f.write("-----------------------\n")
+                    f.write("-----------------------\n")
+                    f.write("------END stdout-------\n")
+                    f.write("-----------------------\n")
 
-                fErr.seek(0)
-                for line in fErr:
-                    f.write("%s" % line)
+                    f.write("\n")
 
-                f.write("-----------------------\n")
-                f.write("------END stderr-------\n")
-                f.write("-----------------------\n")
+                    f.write("-----------------------\n")
+                    f.write("------BEGIN stderr-----\n")
+                    f.write("-----------------------\n")
 
-                f.close()
+                    fErr.seek(0)
+                    for line in fErr:
+                        f.write("%s" % line)
+
+                    f.write("-----------------------\n")
+                    f.write("------END stderr-------\n")
+                    f.write("-----------------------\n")
+
+                    f.close()
+                except:
+                    # error while opening or writing file
+                    # what to do??
+                    pass
 
             fOut.close()
             fErr.close()
