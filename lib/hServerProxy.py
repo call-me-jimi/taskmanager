@@ -13,6 +13,7 @@ import sys
 import logging
 logger = logging.getLogger('hServerProxy')
 logger.setLevel(logging.WARNING)
+logger.propagate = False
 
 formatter = logging.Formatter('[%(asctime)-15s] [hServerProxy] %(message)s')
 
@@ -99,14 +100,16 @@ class hServerProxy(object):
         if self.serverType=='TMS':
             # get stored tms info
             tmsInfo = hTaskManagerServerInfo()
-
-            self.host = tmsInfo.get('host')
+            logger.info( "read config file {f} for TMS.".format( f=tmsInfo.configFile ) )
+            
+            self.host = tmsInfo.get('host', os.uname()[1])
             self.port = tmsInfo.get('port', getDefaultTMSPort( self.user ) )
             self.sslConnection = tmsInfo.get('sslConnection', useSSLConnection)
             self.EOCString = tmsInfo.get('eocstring', EOCString)
         elif self.serverType=='TMMS':
             # get stored tmms info
             tmmsInfo = hTaskManagerMenialServerInfo( self.host )
+            logger.info( "read config file {f} for TMMS.".format( f=tmmsInfo.configFile ) )
 
             self.port = tmmsInfo.get('port', getDefaultTMMSPort( self.user ))
             self.sslConnection = tmmsInfo.get('sslConnection', useSSLConnection)
@@ -119,7 +122,7 @@ class hServerProxy(object):
         # pid of current process
         self.pid = os.getpid()
 
-        logger.info( 'pid {p}'.format(p=self.pid) )
+        #logger.info( 'pid {p}'.format(p=self.pid) )
 
     def run(self):
         """! @brief check if there is a server running on stored port. if not try to invoke one."""

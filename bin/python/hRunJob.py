@@ -33,7 +33,6 @@ sys.path.insert(0,libPath)
 # make sure that libraries can be found, i.e., set PYTHONPATH appropriately
 from hSocket import hSocket
 from hServerProxy import hServerProxy
-from hTaskDispatcherInfo import hTaskDispatcherInfo
 from hTaskManagerServerInfo import hTaskManagerServerInfo
 
 # get stored host and port from taskdispatcher
@@ -262,7 +261,7 @@ if __name__ == '__main__':
 
             jsonObj = json.dumps(jsonObj)
 
-            requestsa.append('addjob:%s' % jsonObj)
+            requests.append('addjob:%s' % jsonObj)
 
     #send commands to TMS
     try:

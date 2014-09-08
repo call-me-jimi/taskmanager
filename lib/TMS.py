@@ -1301,7 +1301,6 @@ class TaskManagerServerProcessor(object):
                 
                 if not TMMS.running:
                     sys.stderr.write("Could not start a TMMS!\n")
-                    sys.exit(-1)
                 else:
                     logger.info('[{th}] ... TMMS has been started on {h}:{p}'.format(th=threadName, h=TMMS.host, p=TMMS.port) )
 
