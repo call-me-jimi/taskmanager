@@ -242,7 +242,6 @@ if __name__ == '__main__':
                         jobs = []
 
                 if jobs:
-                    print "add last jobs"
                     jsonObj = json.dumps( jobs )
                     requests.append( 'addjobs:%s' % jsonObj )
 

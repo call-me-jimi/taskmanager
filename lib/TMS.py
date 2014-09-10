@@ -98,7 +98,7 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
     # timeouts when you kill the server and the sockets don't get
     # closed down correctly.
     allow_reuse_address = True
-    reuest_queue_size = 10
+    request_queue_size = 30
 
     def __init__(self,
                  port,
@@ -163,8 +163,11 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         self.logFileTMS = logFileTMS
 
         # set interval for loop of calling loop functions
-        self.loopInterval = 5
+        self.loopPrintStatusInterval = 10
 
+        # flags
+        self.printingStatus = False
+        
         # start the server
         SocketServer.TCPServer.__init__(self, (self.host,self.port), handler)
 
@@ -218,7 +221,7 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         """!@brief overwrites serve_forever of SocketServer.TCPServer"""
 
         ## check periodically the database in an own thread
-        l2 = threading.Thread( target=self.loopCheckDatabase )
+        l2 = threading.Thread( target=self.loopPrintStatus )
         l2.setDaemon( True )
         l2.start()
         
@@ -226,26 +229,29 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
             self.handle_request()
 
             
-    def loopCheckDatabase( self ):
+    def loopPrintStatus( self ):
         """! @brief this function is executed periodically """
         
         while True:
-            # instantiate new socket
-            clientSock = hSocket(sslConnection=self.sslConnection,
-                                 EOCString=self.EOCString,
-                                 certfile=certfile,
-                                 keyfile=keyfile,
-                                 ca_certs=ca_certs)
+            ### instantiate new socket
+            ##clientSock = hSocket(sslConnection=self.sslConnection,
+            ##                     EOCString=self.EOCString,
+            ##                     certfile=certfile,
+            ##                     keyfile=keyfile,
+            ##                     ca_certs=ca_certs)
+            ##
+            ### connect to server itself
+            ##clientSock.initSocket( self.host, self.port )
+            ##
+            #### send checkdatabase command
+            ##clientSock.send( "ping" )
+            ##clientSock.recv()
+            ##clientSock.close()
 
-            # connect to server itself
-            clientSock.initSocket( self.host, self.port )
-
-            ## send checkdatabase command
-            clientSock.send( "ping" )
-            clientSock.recv()
+            self.printStatus()
             
             # wait for self.loopInterval seconds
-            sleep( self.loopInterval )
+            sleep( self.loopPrintStatusInterval )
             
 
     def sendCommandToTaskDispatcher( self, command ):
@@ -264,7 +270,7 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         clientSock.initSocket( TaskDispatcherHost, TaskDispatcherPort )
         clientSock.send( command )
         response = clientSock.recv()
-
+        
         return response
         
         
@@ -308,7 +314,6 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
                        filter( db.Job.user_id==self.userID ).\
                        group_by( db.JobStatus.name ).\
                        all() )
-
         if not counts:
             # no jobs so far in the database
             counts = {}
@@ -327,21 +332,36 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
     def printStatus(self):
         """!@brief print status of server to stdout"""
 
-        counts,slotInfo = self.getClusterStatus()
-        
-        print "----------------------------"
-        logger.info( "Status of TaskManagerServer on {h}:{p} of user {u}".format(t=str(datetime.now()), h=self.host, p=self.port, u=self.user) )
-        print
-        print "{s:>20} : {value}".format(s="active hosts", value=slotInfo[0] )
-        print "{s:>20} : {value}".format(s="occupied slots", value="{occupied} / {total}".format(occupied=slotInfo[2],total=slotInfo[1]) )
-        print "{s:>20} : {value}".format(s="waiting jobs", value=counts.get('waiting',0) )
-        print "{s:>20} : {value}".format(s="pending jobs", value=counts.get('pending',0) )
-        print "{s:>20} : {value}".format(s="running jobs", value=counts.get('running',0) )
-        print "{s:>20} : {value}".format(s="finished jobs", value=counts.get('finished',0) )
-        print "----------------------------"
+        if not self.printingStatus:
+            self.printingStatus = True
+            
+            counts,slotInfo = self.getClusterStatus()
 
+            ##print "----------------------------"
+            ##logger.info( "Status of TaskManagerServer on {h}:{p} of user {u}".format(t=str(datetime.now()), h=self.host, p=self.port, u=self.user) )
+            ##print
+            ##print "{s:>20} : {value}".format(s="active hosts", value=slotInfo[0] )
+            ##print "{s:>20} : {value}".format(s="occupied slots", value="{occupied} / {total}".format(occupied=slotInfo[2],total=slotInfo[1]) )
+            ##print "{s:>20} : {value}".format(s="waiting jobs", value=counts.get('waiting',0) )
+            ##print "{s:>20} : {value}".format(s="pending jobs", value=counts.get('pending',0) )
+            ##print "{s:>20} : {value}".format(s="running jobs", value=counts.get('running',0) )
+            ##print "{s:>20} : {value}".format(s="finished jobs", value=counts.get('finished',0) )
+            ##print "----------------------------"
 
+            href = "---------------------------------------------"
 
+            info = "STATUS OF TASKMANAGERSERVER ON {h}:{p} OF USER {u}".format(t=str(datetime.now()), h=self.host, p=self.port, u=self.user)
+            status = ""
+            status += "{s:>20} : {value}\n".format(s="active hosts", value=slotInfo[0] )
+            status += "{s:>20} : {value}\n".format(s="occupied slots", value="{occupied} / {total}".format(occupied=slotInfo[2],total=slotInfo[1]) )
+            status += "{s:>20} : {value}\n".format(s="waiting jobs", value=counts.get('waiting',0) )
+            status += "{s:>20} : {value}\n".format(s="pending jobs", value=counts.get('pending',0) )
+            status += "{s:>20} : {value}\n".format(s="running jobs", value=counts.get('running',0) )
+            status += "{s:>20} : {value}".format(s="finished jobs", value=counts.get('finished',0) )
+
+            logger.info( "{info}\n{href}\n{status}\n{href}\n".format(href=href, info=info, status=status) )
+
+            self.printingStatus = False
         
 # The RequestHandler handles an incoming request.
 class TaskManagerServerHandler(SocketServer.BaseRequestHandler):
@@ -357,6 +377,10 @@ class TaskManagerServerHandler(SocketServer.BaseRequestHandler):
         SocketServer.BaseRequestHandler.__init__(self, request, clientAddress, self.TMS)
 
     def finish(self):
+        logger.info("TMS (%s:%s) deletes %s" % (self.TMS.host,
+                                                self.TMS.port,
+                                                self.currThread.getName()))
+
         # check for termination of TMS
         # do not shutdown if
         #    - server is set as persistent
@@ -429,12 +453,6 @@ class TaskManagerServerHandler(SocketServer.BaseRequestHandler):
 
             logger.info("-----------------------")
 
-        logger.info("TMS (%s:%s) has deleted %s" % (self.TMS.host,
-                                                    self.TMS.port,
-                                                    self.currThread.getName()))
-
-        self.TMS.printStatus()
-        
         # closing socket
         try:
             hSock.close()
@@ -442,8 +460,9 @@ class TaskManagerServerHandler(SocketServer.BaseRequestHandler):
             pass
 
         del hSock
-        sys.stdout.flush()
 
+        #self.TMS.printStatus()
+        
 
 
 class TaskManagerServerProcessor(object):
@@ -494,15 +513,14 @@ class TaskManagerServerProcessor(object):
                                                    help = "unset socket connection persistent, i.e. do not close socket")
         
 
-        self.commands["SETINTERVAL"] = hCommand( command_name = "setinterval",
+        self.commands["SETPRINTSTATUSINTERVAL"] = hCommand( command_name = "setprintstatusinterval",
                                                  arguments = "<TIME>",
-                                                 regExp = "^setinterval:(.*)",
-                                                 help = "set interval in seconds for loop checking the database")
+                                                 regExp = "^setprintstatusinterval:(.*)",
+                                                 help = "set interval in seconds for loop printing status")
         
         self.commands["PRINTSERVERINFO"] = hCommand(command_name = 'printserverinfo',
                                                regExp = '^printserverinfo$',
                                                help = "return info about task manager server and taskdispatcher.")
-        
         
         self.commands["GETTDSTATUS"] = hCommand(command_name = 'gettdstatus',
                                                regExp = '^gettdstatus$',
@@ -745,13 +763,13 @@ class TaskManagerServerProcessor(object):
             persistentSocket = False
 
         # set interval for loop
-        elif self.commands['SETINTERVAL'].re.match(receivedStr):
-            c = self.commands["SETINTERVAL"]
+        elif self.commands['SETPRINTSTATUSINTERVAL'].re.match(receivedStr):
+            c = self.commands["SETPRINTSTATUSINTERVAL"]
             
             interval = int( c.re.match( requestStr ).groups()[0] )
 
             # update value
-            TD.loopInterval = interval
+            TD.loopPrintStatusInterval = interval
 
             request.send('done.')
             
@@ -1027,7 +1045,8 @@ class TaskManagerServerProcessor(object):
             counts = dict( dbconnection.query( db.JobStatus.name, func.count('*') ).\
                            join( db.JobDetails, db.JobDetails.job_status_id==db.JobStatus.id ).\
                            join( db.Job, db.Job.id==db.JobDetails.job_id ).\
-                           filter( and_(db.Job.user_id==self.TMS.userID, db.Job.group==groupName) ).\
+                           filter( and_(db.Job.user_id==self.TMS.userID,
+                                        db.Job.group==groupName) ).\
                            group_by( db.JobStatus.name ).\
                            all() )
 

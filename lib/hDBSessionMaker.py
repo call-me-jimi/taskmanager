@@ -35,13 +35,15 @@ databasePassword = config.get( 'DATABASE', 'database_password' )
 #The engine that is connected to the database                                                                                                                         
 #use "echo=True" for SQL printing statements to stdout                                                                                                                
 engine = sqlalchemy.create_engine( "{dialect}://{user}:{password}@{host}:{port}/{name}".format( dialect=databaseDialect,
-                                                                                         user=databaseUsername,
-                                                                                         password=databasePassword,
-                                                                                         host=databaseHost,
-                                                                                         port=databasePort,
-                                                                                         name=databaseName), 
-                                                                                         pool_size=20, #number of connections to keep open inside the connection pool
-                                                                                         echo=False )
+                                                                                                user=databaseUsername,
+                                                                                                password=databasePassword,
+                                                                                                host=databaseHost,
+                                                                                                port=databasePort,
+                                                                                                name=databaseName), 
+                                   pool_size=50, # number of connections to keep open inside the connection pool
+                                   max_overflow=64, # number of connections to allow in connection pool "overflow", that is connections that can be opened above and beyond the pool_size setting, which defaults to five.
+                                   pool_recycle=3600, # this setting causes the pool to recycle connections after the given number of seconds has passed. 
+                                   echo=False )
 
 # Create all tables in the engine. This is equivalent to "Create Table"
 # statements in raw SQL.

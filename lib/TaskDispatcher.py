@@ -27,6 +27,8 @@ from sqlalchemy import and_, not_, func
 from operator import itemgetter, attrgetter
 from sqlalchemy.orm.exc import NoResultFound
 
+from TimeLogger import TimeLogger
+
 # logging
 import logging
 logger = logging.getLogger('TaskDispatcher')
@@ -68,7 +70,7 @@ ca_certs = '%s/certs/authorizedKeys.crt' % etcpath
 
 
 # TaskDispatcher extends the TCPServer
-class TaskDispatcher(SocketServer.TCPServer):
+class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     # By setting this we allow the server to re-bind to the address by
     # setting SO_REUSEADDR, meaning you don't have to wait for
     # timeouts when you kill the server and the sockets don't get
@@ -94,15 +96,15 @@ class TaskDispatcher(SocketServer.TCPServer):
                       ('laststart', str(datetime.now()))
                       ])
 
-        self.dbconnection = hDBConnection()
+        dbconnection = hDBConnection()
         
         # set last job status update to current time if does not exist
         try:
-            self.dbconnection.query( db.TaskDispatcherDetails.last_job_status_update ).one()
+            dbconnection.query( db.TaskDispatcherDetails.last_job_status_update ).one()
         except NoResultFound:
             taskDispatcherDetails = db.TaskDispatcherDetails( last_job_status_update=datetime.now() )
-            self.dbconnection.introduce( taskDispatcherDetails )
-            self.dbconnection.commit()
+            dbconnection.introduce( taskDispatcherDetails )
+            dbconnection.commit()
         
 
         self.fillDatabase()
@@ -118,10 +120,18 @@ class TaskDispatcher(SocketServer.TCPServer):
         self.initDatabaseIDs()
 
         # set interval for loop of calling loop functions
-        self.loopInterval = 5
+        self.loopPingTDInterval = 1
+        self.loopPrintStatusInterval = 5
+        self.loopCheckFinishedJobsInterval = 1
+        self.loopUpdateHostLoadInterval = 5
 
         # set of ids of jobs which are processed currently
-        self.lockedJobs = set()
+        #self.lockedJobs = set()
+
+        # flags which indicate a running processing
+        self.sendingJobs = False
+        self.checkingFinishedJobs = False
+        self.printingStatus = False
         
         print 
         print "[{t}] TaskDispatcher ({path}) has been started on {h}:{p}\n".format( path=tmpath,
@@ -154,79 +164,122 @@ class TaskDispatcher(SocketServer.TCPServer):
     def serve_forever(self):
         """!@brief overwrites serve_forever of SocketServer.TCPServer"""
 
-        ## check periodically the database in an own thread
-        #l1 = threading.Thread( target=self.loopUpdateHostLoad )
-        #l1.setDaemon( True )
-        #l1.start()
+        ## print periodically ping td in an own thread
+        l0 = threading.Thread( target=self.loopPingTD )
+        l0.setDaemon( True )
+        l0.start()
+        
+        ## print periodically status of taskmanager in an own thread
+        l1 = threading.Thread( target=self.loopPrintStatus )
+        l1.setDaemon( True )
+        l1.start()
 
-        ## check periodically the database in an own thread
-        l2 = threading.Thread( target=self.loopCheckDatabase )
+        ## update periodically load of hosts
+        l2 = threading.Thread( target=self.loopUpdateHostLoad )
         l2.setDaemon( True )
         l2.start()
+        
+        ## update periodically check finished jobs
+        l3 = threading.Thread( target=self.loopCheckFinishedJobs )
+        l3.setDaemon( True )
+        l3.start()
         
         while True:
             self.handle_request()
 
+    def loopPingTD( self ):
+        """! @brief execute periodically this function """
+        
+        while True:
+            # instantiate new socket
+            clientSock = hSocket(serverSideSSLConn=False,
+                                 sslConnection=self.sslConnection,
+                                 EOCString=self.EOCString,
+                                 certfile=certfile,
+                                 keyfile=keyfile,
+                                 ca_certs=ca_certs)
+    
+            # connect to server itself
+            clientSock.initSocket( self.host, self.port )
+    
+            ## send checkdatabase command
+            clientSock.send( "ping" )
+            clientSock.recv()
+            
+            # wait a little bit
+            sleep( self.loopPingTDInterval )
+            
+    def loopPrintStatus( self ):
+        """! @brief execute periodically this function """
+    
+        while True:
+            self.printStatus()
+
+            # wait a little bit
+            sleep( self.loopPrintStatusInterval )
+
+
+    def loopCheckFinishedJobs( self ):
+        """! @brief execute periodically this function """
+        
+        while True:
+            self.checkFinishedJobs()
+
+            # wait a little bit
+            sleep( self.loopCheckFinishedJobsInterval )
+
+            
     def loopUpdateHostLoad( self ):
         """! @brief execute periodically this function """
         
         while True:
-            # wait for self.loopInterval seconds
-            sleep( self.loopInterval )
+            self.updateLoadOfHosts()
+
+            # wait a little bit
+            sleep( self.loopUpdateHostLoadInterval )
             
-            # instantiate new socket
-            clientSock = hSocket(serverSideSSLConn=False,
-                                 sslConnection=self.sslConnection,
-                                 EOCString=self.EOCString,
-                                 certfile=certfile,
-                                 keyfile=keyfile,
-                                 ca_certs=ca_certs)
-
-            # connect to server itself
-            clientSock.initSocket( self.host, self.port )
-
-            ## send checkdatabase command
-            clientSock.send( "updateload" )
             
-    def loopCheckDatabase( self ):
-        """! @brief execute periodically this function """
-        
-        while True:
-            # instantiate new socket
-            clientSock = hSocket(serverSideSSLConn=False,
-                                 sslConnection=self.sslConnection,
-                                 EOCString=self.EOCString,
-                                 certfile=certfile,
-                                 keyfile=keyfile,
-                                 ca_certs=ca_certs)
-
-            # connect to server itself
-            clientSock.initSocket( self.host, self.port )
-
-            ## send checkdatabase command
-            clientSock.send( "checkdatabase" )
-            
-            # wait for self.loopInterval seconds
-            sleep( self.loopInterval )
+    ##def loopCheckDatabase( self ):
+    ##    """! @brief execute periodically this function """
+    ##    
+    ##    while True:
+    ##        # instantiate new socket
+    ##        clientSock = hSocket(serverSideSSLConn=False,
+    ##                             sslConnection=self.sslConnection,
+    ##                             EOCString=self.EOCString,
+    ##                             certfile=certfile,
+    ##                             keyfile=keyfile,
+    ##                             ca_certs=ca_certs)
+    ##
+    ##        # connect to server itself
+    ##        clientSock.initSocket( self.host, self.port )
+    ##
+    ##        ## send checkdatabase command
+    ##        clientSock.send( "checkdatabase" )
+    ##        
+    ##        # wait a little bit
+    ##        sleep( self.loopCheckDatabaseInterval )
             
 
     def fillDatabase( self ):
         """! @brief fill database and save ids"""
 
         logger.info( "Fill database (if necessary)" )
+
+        dbconnection = hDBConnection()
         
         # fill JobStatus table
         js = [ 'waiting', 'pending', 'running', 'finished' ]
         for jobStatus in js:
             try:
-                self.dbconnection.query( db.JobStatus ).filter( db.JobStatus.name==jobStatus ).one()
+                dbconnection.query( db.JobStatus ).filter( db.JobStatus.name==jobStatus ).one()
             except:
                 logger.info( "  Add entry '{j}' to JobStatus table.".format(t=str(datetime.now()), j=jobStatus ) )
                 
                 jobStatusInstance = db.JobStatus( name=jobStatus )
                 
-                self.dbconnection.introduce( jobStatusInstance )
-                self.dbconnection.commit()
+                dbconnection.introduce( jobStatusInstance )
+                dbconnection.commit()
         logger.info( "... done" )
 
                 
@@ -234,12 +287,16 @@ class TaskDispatcher(SocketServer.TCPServer):
         """! @brief save some database ids in self.databaseIDs
         """
 
-        self.databaseIDs = dict( self.dbconnection.query( db.JobStatus.name, db.JobStatus.id ).all() )
+        dbconnection = hDBConnection()
+        
+        self.databaseIDs = dict( dbconnection.query( db.JobStatus.name, db.JobStatus.id ).all() )
 
         
     def initCluster( self ):
         """!@brief read config file and update cluster info in database"""
 
+        dbconnection = hDBConnection()
+        
         # read config file
         try:
             configFileName = '{etcpath}/cluster.cfg'.format(etcpath=etcpath)
@@ -286,7 +343,7 @@ class TaskDispatcher(SocketServer.TCPServer):
                     
                     # add entry in database if not already present
                     try:
-                        self.dbconnection.query( db.Host ).filter( db.Host.full_name==hostSettings['full_name'] ).one()
+                        dbconnection.query( db.Host ).filter( db.Host.full_name==hostSettings['full_name'] ).one()
                     except NoResultFound:
                         logger.info( "Add Host {name} to cluster {clusterName}".format(t=str(datetime.now()), name=hostSettings['short_name'], clusterName=clusterName ) )
 
@@ -297,8 +354,8 @@ class TaskDispatcher(SocketServer.TCPServer):
                         hostSummary = db.HostSummary( host=host,
                                                       available=hostStatus['active'] )
                         
-                        self.dbconnection.introduce( host, hostSummary )
-                self.dbconnection.commit()
+                        dbconnection.introduce( host, hostSummary )
+                dbconnection.commit()
 
         except:
             traceback.print_exc(file=sys.stdout)
@@ -310,6 +367,8 @@ class TaskDispatcher(SocketServer.TCPServer):
     def initUsers( self ):
         """! @brief add all user in etc/roles to database"""
 
+        dbconnection = hDBConnection()
+        
         users = {}
         # read users and roles from file
         #    <USER1>   <ROLE1>,<ROLE2>,...
@@ -324,7 +383,7 @@ class TaskDispatcher(SocketServer.TCPServer):
 
         for user in users:
             try:
-                userInstance = self.dbconnection.query( db.User ).filter( db.User.name==user ).one()
+                userInstance = dbconnection.query( db.User ).filter( db.User.name==user ).one()
             except NoResultFound:
                 # add user
                 logger.info( "Add User {name}".format(name=user  ) )
@@ -342,7 +401,7 @@ class TaskDispatcher(SocketServer.TCPServer):
                     
                     # get role if existing
                     try:
-                        roleInstance = self.dbconnection.query( db.Role ).filter( db.Role.name==role ).one()
+                        roleInstance = dbconnection.query( db.Role ).filter( db.Role.name==role ).one()
                     except NoResultFound:
                         # add user
                         logger.info( "Add Role {name}".format(name=role) )
@@ -355,8 +414,8 @@ class TaskDispatcher(SocketServer.TCPServer):
                     # add association to user
                     userInstance.roles.append( newAssoc )
                     
-            self.dbconnection.introduce( userInstance )
-            self.dbconnection.commit()
+            dbconnection.introduce( userInstance )
+            dbconnection.commit()
 
         
         
@@ -539,10 +598,13 @@ class TaskDispatcher(SocketServer.TCPServer):
 
         @todo think about something more sophisticated than just taking the next in queue
         """
-
-        dbconnection = hDBConnection()
+        #timeLogger = TimeLogger( prefix="getNextJobs" )
         
+        dbconnection = hDBConnection()
+
+        #timeLogger.log( "number excluded jobs: {n}".format(n=len(excludedJobIDs)) )
         # get next waiting job in queue
+        #timeLogger.log( "get jobs ..." )
         if excludedJobIDs:
             #job = self.dbconnection.query( db.Job ).join( db.CurrentJobStatus ).filter( and_( db.CurrentJobStatus.job_status_type_id==self.databaseIDs['waiting'], not_(db.CurrentJobStatus.job_id.in_(excludedJobIDs) ) ) ).order_by( db.CurrentJobStatus.id ).limit(1).all()
             jobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( and_( db.JobDetails.job_status_id==self.databaseIDs['waiting'], not_(db.Job.id.in_(excludedJobIDs) ) ) ).order_by( db.Job.id ).limit( numJobs ).all()
@@ -550,6 +612,8 @@ class TaskDispatcher(SocketServer.TCPServer):
             #job = self.dbconnection.query( db.Job ).join( db.CurrentJobStatus ).filter( db.CurrentJobStatus.job_status_type_id==self.databaseIDs['waiting'] ).order_by( db.CurrentJobStatus.id ).limit(1).all()
             jobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==self.databaseIDs['waiting'] ).order_by( db.Job.id ).limit( numJobs ).all()
             
+        #timeLogger.log( "number of found jobs: {n}".format(n=len(jobs)) )
+        
         if jobs:
             # return job id
             return [ j.id for j in jobs ]
@@ -567,9 +631,11 @@ class TaskDispatcher(SocketServer.TCPServer):
         @return (hostID,hostName)
         """
 
+        #timeLogger = TimeLogger( prefix="getVacantHost" )
+        
         dbconnection = hDBConnection()
         
-        logger.info( "Find vacant host ..." )
+        logger.info( "    find vacant host ..." )
         
         if excludedHosts:
             hosts = dbconnection.query( db.Host ). \
@@ -589,119 +655,148 @@ class TaskDispatcher(SocketServer.TCPServer):
                            db.Host.max_number_occupied_slots >= db.HostSummary.number_occupied_slots+slots ) ).all()
 
         if not hosts:
-            logger.info( "... no vacant host found." )
+            logger.info( "    ... no vacant host found." )
             
             return None
         else:
             # check load
 
-            # pick randomly a host for list
+            # pick randomly a host from list
             host = choice( hosts )
             
-            logger.info( "... {h} is vacant.".format(h=host.full_name) )
-
             # get latest load
             try:
-                logger.info( "... check load ..." )
-                
                 hostLoad = sorted( host.host_load, key=attrgetter( 'datetime' ) )[-1]
             except:
                 # no load is given
-                logger.info( ".... .... no load of host {h} is given.".format(h=host.full_name) )
+                logger.info( "    ... host {h} has no load in db. skip.".format(h=host.full_name) )
                 return self.getVacantHost( slots, excludedHosts=excludedHosts.add( host.full_name ) )
             
             if hostLoad.loadavg_1min <= host.max_number_occupied_slots:
-                logger.info( "... ... load is {l}. ok".format(l=hostLoad.loadavg_1min) )
+                logger.info( "  ... {h} is vacant. load is {l}. ok.".format(h=host.full_name,l=hostLoad.loadavg_1min) )
                 return (host.id,host.full_name)
             else:
                 # load is too high
-                logger.info( "... ... load is {l}. too high".format(l=hostLoad.loadavg_1min) )
+                logger.info( "    ... {h} is vacant. load is {l}. too high. skip".format(h=host.full_name,l=hostLoad.loadavg_1min) )
 
                 # get another vacant host
                 return self.getVacantHost( slots, excludedHosts=excludedHosts.add( host.full_name ) )
 
                                                                                    
-    def updateJobStatus(self, dbconnection=None):
-        """! @brief check jobs whether they have finished since last check
+    def checkFinishedJobs(self, dbconnection=None):
+        """! @brief check jobs whether they have finished and free occupied slots of hosts
         """
 
-        logger.info( "Updating job status..." )
-        logger.info( "  acquire lock ...")
+        if not self.checkingFinishedJobs:
+            self.checkingFinishedJobs = True
+            #timeLogger = TimeLogger( prefix="updateJobStatus" )
 
-        # aquire lock
-        self.Lock.acquire()
+            # aquire lock
+            #logger.info( "  acquire lock ...")
+            #self.Lock.acquire()
 
-        # connect to database if not given
-        if not dbconnection:
-            dbconnection = hDBConnection()
+            # connect to database if not given
+            if not dbconnection:
+                dbconnection = hDBConnection()
 
-        taskDispatcherDetails = dbconnection.query( db.TaskDispatcherDetails ).one()
-        jobHistories = dbconnection.query( db.JobHistory ).filter( and_(db.JobHistory.datetime >= taskDispatcherDetails.last_job_status_update,
-                                                                        db.JobHistory.checked == False) ).all()
-        slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
-        
-        taskDispatcherDetails.last_job_status_update = datetime.now()
+            taskDispatcherDetails = dbconnection.query( db.TaskDispatcherDetails ).one()
+            #timeLogger.log( "get finished and unchecked jobs" )
+            #jobHistories = dbconnection.query( db.JobHistory ).filter( and_(db.JobHistory.job_status_id == self.databaseIDs['finished'],
+            #                                                                db.JobHistory.checked == False) ).all()
+            #timeLogger.log( "found {n}".format(n=len(jobHistories) ) )
 
-        occupiedSlots = defaultdict( int )
-        for jobHistory in jobHistories:
-            if jobHistory.job_status_id == self.databaseIDs['finished']:
-                jobID = jobHistory.job_id
-                logger.info( "   Job [{j}] has finished. Free occupied slots on host.".format(j=jobID ) )
+            #timeLogger.log( "get finished jobs ..." )
+            finishedJobs = dbconnection.query( db.FinishedJob ).all()
+            #timeLogger.log( "... found {n}".format(n=len(finishedJobs) ) )
 
-                # get Job instance
-                job = dbconnection.query( db.Job ).get( jobID )
+            if finishedJobs:
+                logger.info( "{n} finished job{s}.".format(n=len(finishedJobs), s='s' if len(finishedJobs)>1 else '' ) )
+
+            taskDispatcherDetails.last_job_status_update = datetime.now()
+
+            occupiedSlots = defaultdict( int )
+            #for jobHistory in jobHistories:
+            #    if jobHistory.job_status_id == self.databaseIDs['finished']:
+            #        jobID = jobHistory.job_id
+            #        logger.info( "   Job [{j}] has finished. Free occupied slots on host.".format(j=jobID ) )
+            #
+            #        # get Job instance
+            #        job = dbconnection.query( db.Job ).get( jobID )
+            #
+            #        occupiedSlots[ job.job_details.host_id ] += job.slots
+            #
+            #        # set checked flag
+            #        jobHistory.checked = True
+            for finishedJob in finishedJobs:
+                job = finishedJob.job
+                logger.info( "   Job [{j}] has finished. Free occupied slots on host.".format(j=job.id ) )
 
                 occupiedSlots[ job.job_details.host_id ] += job.slots
 
-                # set checked flag
-                jobHistory.checked = True
+                dbconnection.delete( finishedJob )
 
-        # free occupied slots on host
-        for h in occupiedSlots:
-            dbconnection.query( db.HostSummary ).\
-                                filter( db.HostSummary.host_id==h ).\
-                                update( { db.HostSummary.number_occupied_slots: slots[ h ] - occupiedSlots[ h ] } )
+            # free occupied slots on host
+            for h in occupiedSlots:
+                dbconnection.query( db.HostSummary ).\
+                                    filter( db.HostSummary.host_id==h ).\
+                                    update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots - occupiedSlots[ h ] } )
 
-        dbconnection.commit()
-        
-        logger.info( "  ... release lock")
-        
-        # releas lock
-        self.Lock.release()
-        
-    def printStatus(self):
-        """!@brief print status of server to stdout"""
+            dbconnection.commit()
 
-        dbconnection = hDBConnection()
-        
-        # get all number of jobs for each status type
-        counts = dict( dbconnection.query( db.JobStatus.name, func.count('*') ).join( db.JobDetails, db.JobDetails.job_status_id==db.JobStatus.id ).group_by( db.JobStatus.name ).all() )
-
-        if not counts:
-            # no jobs so far in the database
-            counts = {}
-
-        slotInfo = dbconnection.query( func.count('*'),
-                                       func.sum( db.Host.max_number_occupied_slots ), 
-                                       func.sum( db.HostSummary.number_occupied_slots ) ).select_from( db.Host ).join( db.HostSummary, db.HostSummary.host_id==db.Host.id ).filter( db.HostSummary.active==True ).one()
-
-        if slotInfo[0]==0:
-            slotInfo = (0, 0, 0)
+            # releas lock
+            #logger.info( "  ... release lock")
+            #self.Lock.release()
             
-        print "----------------------------"
-        #print "[{t}] Status of TaskDispatcher on {h}:{p}".format(t=str(datetime.now()), h=self.host, p=self.port)
-        logger.info( "Status of TaskDispatcher on {h}:{p}".format(t=str(datetime.now()), h=self.host, p=self.port) )
-        print
-        print "{s:>20} : {value}".format(s="active cluster", value=self.active )
-        print "{s:>20} : {value}".format(s="active hosts", value=slotInfo[0] )
-        print "{s:>20} : {value}".format(s="occupied slots", value="{occupied} / {total}".format(occupied=slotInfo[2],total=slotInfo[1]) )
-        print "{s:>20} : {value}".format(s="waiting jobs", value=counts.get('waiting',0) )
-        print "{s:>20} : {value}".format(s="pending jobs", value=counts.get('pending',0) )
-        print "{s:>20} : {value}".format(s="running jobs", value=counts.get('running',0) )
-        print "{s:>20} : {value}".format(s="finished jobs", value=counts.get('finished',0) )
-        print "----------------------------"
+            self.checkingFinishedJobs = False
+        
+    def printStatus(self, returnString=False):
+        """!@brief print status of server to stdout if not outSream is given
 
-        dbconnection.remove()
+        @param returnString (boolean) return formatted status instead of passing it to logger
+        """
+
+        if returnString or not self.printingStatus:
+            if not returnString:
+                self.printingStatus=True
+            
+            dbconnection = hDBConnection()
+
+            # get all number of jobs for each status type
+            counts = dict( dbconnection.query( db.JobStatus.name, func.count('*') ).join( db.JobDetails, db.JobDetails.job_status_id==db.JobStatus.id ).group_by( db.JobStatus.name ).all() )
+
+            if not counts:
+                # no jobs so far in the database
+                counts = {}
+
+            slotInfo = dbconnection.query( func.count('*'),
+                                           func.sum( db.Host.max_number_occupied_slots ), 
+                                           func.sum( db.HostSummary.number_occupied_slots ) ).select_from( db.Host ).join( db.HostSummary, db.HostSummary.host_id==db.Host.id ).filter( db.HostSummary.active==True ).one()
+
+            if slotInfo[0]==0:
+                slotInfo = (0, 0, 0)
+
+            href = "--------------------------------------------------"
+            info = "STATUS OF TASKDISPATCHER ON {h}:{p}".format(t=str(datetime.now()), h=self.host, p=self.port)
+            status = ""
+            status += "{s:>20} : {value}\n".format(s="active cluster", value=self.active )
+            status += "{s:>20} : {value}\n".format(s="active hosts", value=slotInfo[0] )
+            status += "{s:>20} : {value}\n".format(s="occupied slots", value="{occupied} / {total}".format(occupied=slotInfo[2],total=slotInfo[1]) )
+            status += "{s:>20} : {value}\n".format(s="waiting jobs", value=counts.get('waiting',0) )
+            status += "{s:>20} : {value}\n".format(s="pending jobs", value=counts.get('pending',0) )
+            status += "{s:>20} : {value}\n".format(s="running jobs", value=counts.get('running',0) )
+            status += "{s:>20} : {value}".format(s="finished jobs", value=counts.get('finished',0) )
+
+            dbconnection.remove()
+
+            statusString = "{info}\n{href}\n{status}\n{href}\n".format(href=href, info=info, status=status)
+            if not returnString:
+                logger.info( statusString )
+                self.printingStatus=False
+            else:
+                return statusString
+
+        
+
         
 # The RequestHandler handles an incoming request.
 class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
@@ -738,7 +833,7 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
             requestSocket.send("Error while processing request!\n%s" %  tb[1])
 
         t2 = datetime.now()
-        logger.info( "... done in {dt}s.".format(dt=str(t2-t1) ) )
+        logger.info( "REQUEST PROCESSED IN {dt}s.".format(dt=str(t2-t1) ) )
 
         
     def finish(self):
@@ -747,54 +842,62 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
         Check database if there are waiting jobs, check user, find vacant host, and send job to associated tms of user.
         """
 
-        dbconnection = hDBConnection()
-        
-        self.TD.updateJobStatus( dbconnection )
-        
-        if self.TD.active:
-            # get next job, find vacant host and send job
+        #self.TD.updateJobStatus()
+
+        if self.TD.active and not self.TD.sendingJobs:
+            self.TD.sendingJobs = True
+            
+            ## get next job, find vacant host and send job
+            
+            dbconnection = hDBConnection()
         
             print "----------------------------"
             
             t1 = datetime.now()
 
-
+            # get number of free slots
             slotInfo = dbconnection.query( func.count('*'),
                                            func.sum( db.Host.max_number_occupied_slots ), 
                                            func.sum( db.HostSummary.number_occupied_slots ) ).select_from( db.Host ).join( db.HostSummary, db.HostSummary.host_id==db.Host.id ).filter( db.HostSummary.active==True ).one()
-            freeSlots = slotInfo[1] - slotInfo[2]
+
+            if slotInfo[1]!=None and slotInfo[2]!=None:
+                freeSlots = slotInfo[1] - slotInfo[2]
+            else:
+                freeSlots = 0
+                
             logger.info( "Free slots: {n}".format(n=freeSlots) )
             
             if freeSlots>0:
-                getNextJobs = True
-            else:
-                getNextJobs = False
-                
-            while getNextJobs:
-                logger.info( "Get next job to be executed ..." )
+            
+                logger.info( "Get jobs to be executed ...".format(n=freeSlots) )
 
                 # get next jobs ready to be sent to associate tms
-                jobIDs = self.TD.getNextJobs( numJobs=freeSlots, excludedJobIDs=self.TD.lockedJobs )
-
+                #jobIDs = self.TD.getNextJobs( numJobs=freeSlots, excludedJobIDs=self.TD.lockedJobs )
+                jobIDs = self.TD.getNextJobs( numJobs=freeSlots )
+                
                 if jobIDs:
-                    for jobID in jobIDs:
+                    logger.info( "... got {n} jobs to be executed.".format(n=len(jobIDs) ) )
+
+                    # iterate over all jobs
+                    # reduced freeSlots accordingly after job has been submitted
+                    for idx,jobID in enumerate(jobIDs):
                         # add job to locked jobs, i.e., they are currently processed
-                        self.TD.lockedJobs.add( jobID )
+                        #self.TD.lockedJobs.add( jobID )
 
                         # get Job instance
                         job = dbconnection.query( db.Job ).get( jobID )
                         user = job.user
-
-                        logger.info( "  found job {i} of user {u}".format( i=jobID, u=user.name ) )
+                        
+                        logger.info( "  next job {idx}/{N} is {i} of user {u}".format( idx=idx+1, N=len(jobIDs), i=jobID, u=user.name ) )
 
                         # get excluded hosts
                         excludedHosts = json.loads( job.excluded_hosts )
 
                         # get vacant host which has the necessary number of free slots
-                        vacantHost = self.TD.getVacantHost( job.slots, excludedHosts=set( excludedHosts) )
+                        vacantHost = self.TD.getVacantHost( job.slots, excludedHosts=set( excludedHosts ) )
 
                         if vacantHost:
-                            logger.info( "  run job {j} of user {u} on {h}".format(j=jobID, u=user.name, h=vacantHost[1] ) )
+                            logger.info( "    run job {j} of user {u} on {h}".format(j=jobID, u=user.name, h=vacantHost[1] ) )
 
                             try:
                                 # send jobID to tms
@@ -836,26 +939,28 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
 
                                     freeSlots -= job.slots
 
-
                             except socket.error,msg:
                                 logger.info( "... failed [{h}:{p}]: {m}".format(h=user.tms_host, p=user.tms_port, m=msg) )
-                    else:
-                        getNextJobs = False
-
-                    # remove job from locked ids
-                    self.TD.lockedJobs.remove( jobID )
+                                
+                        logger.info( "  free slots: {s}".format(s=freeSlots))
+                        
+                        # remove job from locked ids
+                        #self.TD.lockedJobs.remove( jobID )
                     
+                        if freeSlots < 1:
+                            break
+                    logger.info( "done." )        
                 else:
-                    getNextJobs = False
                     logger.info( '... no jobs.' )
                     
 
-
             t2 = datetime.now()
-            
             logger.info( "... done in {dt}s.".format(dt=str(t2-t1) ) )
-        
-        self.TD.printStatus()
+
+            self.TD.sendingJobs = False
+
+        # print status
+        #self.TD.printStatus()
         
         return SocketServer.BaseRequestHandler.finish(self)
 
@@ -877,6 +982,9 @@ class TaskDispatcherRequestProcessor(object):
         self.commands["HELP"] = hCommand( command_name = "help",
                                           regExp = "^help$",
                                           help = "return help")
+        self.commands["PRINTSTATUS"] = hCommand( command_name = "printstatus",
+                                          regExp = "^printstatus$",
+                                          help = "print status to stdout")
         self.commands["ACTIVATECLUSTER"] = hCommand( command_name = "activatecluster",
                                                      regExp = "^activatecluster$",
                                                      help = "activate cluster")
@@ -895,10 +1003,22 @@ class TaskDispatcherRequestProcessor(object):
         self.commands["CHECKDATABASE"] = hCommand( command_name = "checkdatabase",
                                                    regExp = "^checkdatabase$",
                                                    help = "check database for waiting jobs")
-        self.commands["SETINTERVAL"] = hCommand( command_name = "setinterval",
+        self.commands["SETINTERVALPINGTD"] = hCommand( command_name = "setintervalpingTD",
                                                  arguments = "<TIME>",
-                                                 regExp = "^setinterval:(.*)",
-                                                 help = "set interval in seconds for loop checking the database")
+                                                 regExp = "^setintervalpingtd:(.*)",
+                                                 help = "set interval in seconds for loop pinging TaskDispatcher")
+        self.commands["SETINTERVALPRINTSTATUS"] = hCommand( command_name = "setintervalprintstatus",
+                                                 arguments = "<TIME>",
+                                                 regExp = "^setintervalprintstatus:(.*)",
+                                                 help = "set interval in seconds for loop printing status")
+        self.commands["SETINTERVALCHECKFINISHEDJOBS"] = hCommand( command_name = "setintervalcheckfinishedjobs",
+                                                 arguments = "<TIME>",
+                                                 regExp = "^setintervalcheckfinishedjobs:(.*)",
+                                                 help = "set interval in seconds for loop checking finished jobs")
+        self.commands["SETINTERVALUPDATEHOSTLOAD"] = hCommand( command_name = "setintervalupdatehostload",
+                                                 arguments = "<TIME>",
+                                                 regExp = "^setintervalupdatehostload:(.*)",
+                                                 help = "set interval in seconds for loop updating host load")
         self.commands["ADDJOB"] = hCommand(command_name = 'addjob',
                                            arguments = "<jsonStr>",
                                            regExp = '^addjob:(.*)',
@@ -967,6 +1087,10 @@ class TaskDispatcherRequestProcessor(object):
                                                         regExp = '^removealljobsofuser:(.*)',
                                                         help = "remove all jobs of user from database")
 
+        self.commands["REMOVEALLWJOBSOFUSER"] = hCommand(command_name = 'removeallwjobsofuser',
+                                                        arguments = "<username>",
+                                                        regExp = '^removeallwjobsofuser:(.*)',
+                                                        help = "remove all waiting jobs of user from database")
         
 
         
@@ -986,15 +1110,25 @@ class TaskDispatcherRequestProcessor(object):
             help.append( "Commands known by the TaskDispatcher:" )
             # iterate over all commands defined in self.commands
             help.extend( renderHelp( sorted(self.commands.keys()), self.commands ) )
+            
             request.send( '\n'.join( help ) )
+            
+        elif self.commands["PRINTSTATUS"].re.match( requestStr ):
+            status = TD.printStatus( returnString=True )
+
+            request.send( status )
             
         elif self.commands["ACTIVATECLUSTER"].re.match( requestStr ):
             # set active status to True
             TD.active = True
 
+            request.send( 'activated.' )
+
         elif self.commands["DEACTIVATECLUSTER"].re.match( requestStr ):
             # set active status to False
             TD.active = False
+            
+            request.send( 'deactivated.' )
 
         elif self.commands["LSCLUSTER"].re.match( requestStr ):
             # show cluster
@@ -1038,22 +1172,53 @@ class TaskDispatcherRequestProcessor(object):
             ##
             ##print "number of waiting jobs:",len(jobIDs)
             
-        elif self.commands['SETINTERVAL'].re.match( requestStr ):
-            c = self.commands["SETINTERVAL"]
+        elif self.commands['SETINTERVALPINGTD'].re.match( requestStr ):
+            c = self.commands["SETINTERVALPINGTD"]
             
             interval = int( c.re.match( requestStr ).groups()[0] )
 
             # update value
-            TD.loopInterval = interval
+            TD.loopPingTD = interval
 
             request.send('done.')
             
+        elif self.commands['SETINTERVALPRINTSTATUS'].re.match( requestStr ):
+            c = self.commands["SETINTERVALPRINTSTATUS"]
+            
+            interval = int( c.re.match( requestStr ).groups()[0] )
+
+            # update value
+            TD.loopPrintStatusInterval = interval
+
+            request.send('done.')
+            
+        elif self.commands['SETINTERVALCHECKFINISHEDJOBS'].re.match( requestStr ):
+            c = self.commands["SETINTERVCHECKFINISHEDJOBS"]
+            
+            interval = int( c.re.match( requestStr ).groups()[0] )
+
+            # update value
+            TD.loopCheckFinishedJobsInterval = interval
+
+            request.send('done.')
+            
+        elif self.commands['SETINTERVALUPDATEHOSTLOAD'].re.match( requestStr ):
+            c = self.commands["SETINTERVALUPDATEHOSTLOAD"]
+            
+            interval = int( c.re.match( requestStr ).groups()[0] )
+
+            # update value
+            TD.loopUpdateHostLoadInterval = interval
+
+            request.send('done.')
         elif self.commands['ACTIVATEHOST'].re.match( requestStr ):
             c = self.commands['ACTIVATEHOST']
 
             host = c.re.match( requestStr ).groups()[0]
 
             TD.activateHost( host )
+
+            request.send( "host {h} has been activated".format(h=host) )
 
             
         #elif self.commands['REGISTERUSER'].re.match( requestStr ):
@@ -1081,6 +1246,8 @@ class TaskDispatcherRequestProcessor(object):
             host = c.re.match( requestStr ).groups()[0]
 
             TD.deactivateHost( host )
+            
+            request.send( "host {h} has been deactivated".format(h=host) )
             
         elif self.commands["ADDJOB"].re.match( requestStr ):
             c = self.commands["ADDJOB"]
@@ -1332,6 +1499,8 @@ class TaskDispatcherRequestProcessor(object):
 
             dbconnection.commit()
 
+            request.send( "set {n} jobs as waiting".format(n=len(pJobs)) )
+
         elif self.commands["SETALLRJOBSASWAITING"].re.match( requestStr ):
             rJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['running'] ).all()
             slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
@@ -1361,6 +1530,8 @@ class TaskDispatcherRequestProcessor(object):
 
             dbconnection.commit()
             
+            request.send( "set {n} jobs as waiting".format(n=len(rJobs)) )
+            
         elif self.commands["SETALLPJOBSASFINISHED"].re.match( requestStr ):
             pJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['pending'] ).all()
             slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
@@ -1389,6 +1560,8 @@ class TaskDispatcherRequestProcessor(object):
 
             dbconnection.commit()
 
+            request.send( "set {n} jobs as finished".format(n=len(rJobs)) )
+            
         elif self.commands["SETALLRJOBSASFINISHED"].re.match( requestStr ):
             rJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['running'] ).all()
             slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
@@ -1417,6 +1590,8 @@ class TaskDispatcherRequestProcessor(object):
 
             dbconnection.commit()
             
+            request.send( "set {n} jobs as finished".format(n=len(rJobs)) )
+            
         elif self.commands["REMOVEALLJOBSOFUSER"].re.match( requestStr ):
             c = self.commands["REMOVEALLJOBSOFUSER"]
             
@@ -1442,6 +1617,24 @@ class TaskDispatcherRequestProcessor(object):
                   update( { db.HostSummary.number_occupied_slots: slots[ h ] - occupiedSlots[ h ] } )
 
 
+            dbconnection.commit()
+                
+            request.send( "removed {j} of user {u}.".format(j=len(jobs),u=user ) )
+            
+        elif self.commands["REMOVEALLWJOBSOFUSER"].re.match( requestStr ):
+            c = self.commands["REMOVEALLWJOBSOFUSER"]
+            
+            user = c.re.match( requestStr ).groups()[0]
+            
+            jobs = dbconnection.query( db.Job ).join( db.User ).join( db.JobDetails ).filter( and_(db.User.name==user,
+                                                                                                   db.JobDetails.job_status_id==TD.databaseIDs['waiting'] ) ).all()
+
+            logger.info( "remove {j} of user {u}".format(j=len(jobs),u=user ) )
+            
+            for job in jobs:
+                logger.info( "remove job {i}".format(i=job.id) )
+                dbconnection.delete( job )
+                
             dbconnection.commit()
                 
             request.send( "removed {j} of user {u}.".format(j=len(jobs),u=user ) )

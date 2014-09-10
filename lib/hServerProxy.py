@@ -313,16 +313,16 @@ class hServerProxy(object):
         self.clientSock.shutdown(socket.SHUT_RDWR)
         self.openConnection = False
 
-    def sendAndRecv(self,request):
+    def sendAndRecv(self,request, createNewSocket=False):
         """ send request to server and receive response"""
-        self.send(request)
+        self.send(request, createNewSocket)
 
         return self.recv()
 
-    def sendAndClose(self,request):
+    def sendAndClose(self,request, createNewSocket=False):
         """ send request to server and close connection"""
         try:
-            self.send(request)
+            self.send(request, createNewSocket)
             self.close()
         except socket.error,msg:
             self.openConnection = False
@@ -333,10 +333,10 @@ class hServerProxy(object):
             traceback.print_exc(file=sys.stderr)
 
 
-    def sendAndRecvAndClose(self,request):
+    def sendAndRecvAndClose(self,request, createNewSocket=False):
         """ send request to server, receive response and close connection"""
         try:
-            self.send(request)
+            self.send(request, createNewSocket)
             response = self.recv()
             self.close()
             return response

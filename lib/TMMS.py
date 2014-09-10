@@ -106,7 +106,7 @@ class TaskManagerMenialServer(SocketServer.ThreadingMixIn, SocketServer.TCPServe
     # timeouts when you kill the server and the sockets don't get
     # closed down correctly.
     allow_reuse_address = True
-    request_queue_size = 10
+    request_queue_size = 30
 
     # set maximum number of children. actually has to be adjust according to number of cpu's
     max_children=64
@@ -166,8 +166,6 @@ class TaskManagerMenialServer(SocketServer.ThreadingMixIn, SocketServer.TCPServe
         # save database ids of some entries in self.databaseIDs
         self.databaseIDs = dict( dbconnection.query( db.JobStatus.name, db.JobStatus.id ).all() )
 
-        dbconnection.remove()
-        
         # start the server
         SocketServer.TCPServer.__init__(self,(self.host,self.port), handler)
 
@@ -444,7 +442,6 @@ class TaskManagerMenialServerProcessor:
             
             dbconnection.introduce( jobHistory )
             dbconnection.commit()
-            dbconnection.remove()
             
             ##jsonOutObj = {'jobID': jobID,
             ##              'pid': sp.pid,
@@ -553,8 +550,12 @@ class TaskManagerMenialServerProcessor:
                                         job_status_id = TMMS.databaseIDs['finished'] )
             
             dbconnection.introduce( jobHistory )
+
+            finishedJob = db.FinishedJob( job=job )
+
+            dbconnection.introduce( finishedJob )
+            
             dbconnection.commit()
-            dbconnection.remove()
             
             #try:
             #    clientSock = hSocket(host=TMMS.tmsHost,
