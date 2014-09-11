@@ -98,7 +98,7 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
     # timeouts when you kill the server and the sockets don't get
     # closed down correctly.
     allow_reuse_address = True
-    request_queue_size = 30
+    request_queue_size = 50
 
     def __init__(self,
                  port,
@@ -223,6 +223,7 @@ class TaskManagerServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Dae
         ## check periodically the database in an own thread
         l2 = threading.Thread( target=self.loopPrintStatus )
         l2.setDaemon( True )
+        l2.setName( "Thread: loopPrintStatus" )
         l2.start()
         
         while True:
@@ -406,6 +407,8 @@ class TaskManagerServerHandler(SocketServer.BaseRequestHandler):
         #self.TMS.Lock.acquire()
         #self.TMS.Lock.release()
 
+        self.currThread.setName( "Thread [{t}]".format(t=str(datetime.now() ) ) )
+        
         logger.info("-----------------------")
         logger.info("TMS (%s:%s) has created a new thread (%s) for connection from %s:%s" % (self.TMS.host,
                                                                                              self.TMS.port,
@@ -417,7 +420,7 @@ class TaskManagerServerHandler(SocketServer.BaseRequestHandler):
             self.firstRequest = False
             self.waitForNextRequest = False
             
-            (sread, swrite, sexc) = select.select([self.request], [], [], None)
+            ##(sread, swrite, sexc) = select.select([self.request], [], [], None)
 
             logger.info("-----------------------")
 
@@ -429,10 +432,19 @@ class TaskManagerServerHandler(SocketServer.BaseRequestHandler):
                                 EOCString=self.TMS.EOCString,
                                 certfile=self.TMS.certfile,
                                 keyfile=self.TMS.keyfile,
-                                ca_certs=self.TMS.ca_certs)
+                                ca_certs=self.TMS.ca_certs,
+                                timeout=10)
 
-            receivedStr = hSock.recv()
-
+            try:
+                receivedStr = hSock.recv()
+            except socket.timeout:
+                logger.warn( "Timeout while reading from socket. Skip" )
+                break
+            
+            self.currThread.setName( "Thread [{t}]: {s}{dots}".format(t=str(datetime.now()),
+                                                                      s=receivedStr[:10],
+                                                                      dots="..." if len(receivedStr[:10])==10 else "" ) )
+                                     
             logger.info("[{name}] NEW REQUEST: {s}".format(name=self.currThread.getName(), s=receivedStr) )
 
             # process request
@@ -554,9 +566,9 @@ class TaskManagerServerProcessor(object):
                                            regExp = 'lsfjobs',
                                            help = "return finished jobs")
         
-        self.commands["LSJOB"] = hCommand(command_name = 'lsjob',
+        self.commands["LAJOB"] = hCommand(command_name = 'lajob',
                                           arguments = "<jobID>",
-                                          regExp = 'lsjob:(.*)',
+                                          regExp = 'lajob:(.*)',
                                           help = "return job info about job with given jobID")
         
         self.commands["FINDJOBS"] = hCommand(command_name = 'findjobs',
@@ -564,13 +576,13 @@ class TaskManagerServerProcessor(object):
                                             regExp = 'findjobs:(.*)',
                                             help = "return all jobs which match the search string in command, info text and group.")
 
-        self.commands["LSGROUP"] = hCommand(command_name = 'lsgroup',
+        self.commands["LAGROUP"] = hCommand(command_name = 'lagroup',
                                             arguments = "<group name>",
-                                            regExp = 'lsgroup:(.*)',
+                                            regExp = 'lagroup:(.*)',
                                             help = "return info about jobs of a group.")
         
-        self.commands["LSGROUPS"] = hCommand(command_name = 'lsgroups',
-                                            regExp = 'lsgroups',
+        self.commands["LAGROUPS"] = hCommand(command_name = 'lagroups',
+                                            regExp = 'lagroups',
                                             help = "return info about jobs of all known groups.")
 
         self.commands["HASGROUPFINISHED"] = hCommand(command_name = 'hasgroupfinished',
@@ -730,8 +742,9 @@ class TaskManagerServerProcessor(object):
                 "LSPJOBS",
                 "LSRJOBS",
                 "LSFJOBS",
-                "LSGROUP",
-                "LSGROUPS",
+                "LAJOB",
+                "LAGROUP",
+                "LAGROUPS",
                 "FINDJOBS",
                 "ADDJOB",
                 "SUSPENDJOB",
@@ -954,8 +967,8 @@ class TaskManagerServerProcessor(object):
             dbconnection.remove()
                 
         #  get job info of job with given jobID
-        elif self.commands["LSJOB"].re.match(receivedStr):
-            c = self.commands["LSJOB"]
+        elif self.commands["LAJOB"].re.match(receivedStr):
+            c = self.commands["LAJOB"]
 
             jobID = c.re.match(receivedStr).groups()[0]
 
@@ -1033,8 +1046,8 @@ class TaskManagerServerProcessor(object):
             ##    request.send("Connection to TD failed")
 
         #  get info about jobs of group
-        elif self.commands["LSGROUP"].re.match(receivedStr):
-            c = self.commands["LSGROUP"]
+        elif self.commands["LAGROUP"].re.match(receivedStr):
+            c = self.commands["LAGROUP"]
 
             groupName = c.re.match(receivedStr).groups()[0]
 
@@ -1071,14 +1084,14 @@ class TaskManagerServerProcessor(object):
                 request.send( "group is unknown" )
 
 
-        elif self.commands["LSGROUPS"].re.match(receivedStr):
-            c = self.commands["LSGROUPS"]
+        elif self.commands["LAGROUPS"].re.match(receivedStr):
+            c = self.commands["LAGROUPS"]
 
             # connect to database
             dbconnection = hDBConnection()
 
             groupNames = dbconnection.query( db.Job.group ).filter( db.Job.user_id==self.TMS.userID ).distinct().all()
-            print "GROUP NAMES",groupNames
+
             response = ""
             for groupName, in groupNames:
                 # get all number of jobs for each status type for user
@@ -1280,7 +1293,7 @@ class TaskManagerServerProcessor(object):
                             'TMSID': self.TMS.ID,
                             'jobs': jobs }
 
-            logger.info('[%s] ... send jobs to TD' % threadName)
+            logger.info('[%s] ... submit jobs to TD' % threadName)
 
             jsonOutObj = json.dumps(jsonOutObj)
             com = "addjobs:%s" % jsonOutObj
