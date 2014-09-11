@@ -662,11 +662,21 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         # get next waiting job in queue
         #timeLogger.log( "get jobs ..." )
         if excludedJobIDs:
-            #job = self.dbconnection.query( db.Job ).join( db.CurrentJobStatus ).filter( and_( db.CurrentJobStatus.job_status_type_id==self.databaseIDs['waiting'], not_(db.CurrentJobStatus.job_id.in_(excludedJobIDs) ) ) ).order_by( db.CurrentJobStatus.id ).limit(1).all()
-            jobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( and_( db.JobDetails.job_status_id==self.databaseIDs['waiting'], not_(db.Job.id.in_(excludedJobIDs) ) ) ).order_by( db.Job.id ).limit( numJobs ).all()
+            jobs = dbconnection.query( db.Job ).\
+                   join( db.User ).\
+                   filter( db.User.enabled==True ).\
+                   join( db.JobDetails ).\
+                   filter( and_( db.JobDetails.job_status_id==self.databaseIDs['waiting'], not_(db.Job.id.in_(excludedJobIDs) ) ) ).\
+                   order_by( db.Job.id ).\
+                   limit( numJobs ).all()
         else:
-            #job = self.dbconnection.query( db.Job ).join( db.CurrentJobStatus ).filter( db.CurrentJobStatus.job_status_type_id==self.databaseIDs['waiting'] ).order_by( db.CurrentJobStatus.id ).limit(1).all()
-            jobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==self.databaseIDs['waiting'] ).order_by( db.Job.id ).limit( numJobs ).all()
+            jobs = dbconnection.query( db.Job ).\
+                   join( db.User ).\
+                   filter( db.User.enabled==True ).\
+                   join( db.JobDetails ).\
+                   filter( db.JobDetails.job_status_id==self.databaseIDs['waiting'] ).\
+                   order_by( db.Job.id ).\
+                   limit( numJobs ).all()
             
         #timeLogger.log( "number of found jobs: {n}".format(n=len(jobs)) )
         
@@ -1069,6 +1079,9 @@ class TaskDispatcherRequestProcessor(object):
         self.commands["HELP"] = hCommand( command_name = "help",
                                           regExp = "^help$",
                                           help = "return help")
+        self.commands["FULLHELP"] = hCommand( command_name = "fullhelp",
+                                              regExp = "^fullhelp$",
+                                              help = "return full help")
         self.commands["LSTHREADS"] = hCommand(command_name = "lsthreads",
                                             regExp = "^lsthreads$",
                                             help = "return list of active threads")
@@ -1084,15 +1097,20 @@ class TaskDispatcherRequestProcessor(object):
         self.commands["LSCLUSTER"] = hCommand( command_name = "lscluster",
                                                        regExp = "^lscluster$",
                                                        help = "show cluster details")
-        self.commands["FULLHELP"] = hCommand( command_name = "fullhelp",
-                                              regExp = "^fullhelp$",
-                                              help = "return full help")
         self.commands["UPDATELOAD"] = hCommand( command_name = "updateload",
                                               regExp = "^updateload$",
                                               help = "update load of hosts")
         self.commands["CHECKDATABASE"] = hCommand( command_name = "checkdatabase",
                                                    regExp = "^checkdatabase$",
                                                    help = "check database for waiting jobs")
+        self.commands["ENABLEUSER"] = hCommand( command_name = "enableuser",
+                                                 arguments = "<USER>",
+                                                 regExp = "^enableuser:(.*)",
+                                                 help = "enable user.")
+        self.commands["DISABLEUSER"] = hCommand( command_name = "disableuser",
+                                                 arguments = "<USER>",
+                                                 regExp = "^disableuser:(.*)",
+                                                 help = "disable user.")
         self.commands["SETINTERVALCHECKTD"] = hCommand( command_name = "setintervalchecktd",
                                                  arguments = "<TIME>",
                                                  regExp = "^setintervalchecktd:(.*)",
@@ -1269,6 +1287,28 @@ class TaskDispatcherRequestProcessor(object):
             ##jobIDs = TD.dbconnection.query( db.CurrentJobStatus.job_id ).filter( db.CurrentJobStatus.job_status_type_id==TD.databaseIDs['added'] ).all()
             ##
             ##print "number of waiting jobs:",len(jobIDs)
+            
+        elif self.commands['ENABLEUSER'].re.match( requestStr ):
+            c = self.commands["ENABLEUSER"]
+            
+            user = c.re.match( requestStr ).groups()[0]
+
+            try:
+                dbconnection.query( db.User )filter( name==user ).update( {db.User.enabled: True} )
+                request.send('done.')
+            except:
+                request.send('failed.')
+
+        elif self.commands['DISABLEUSER'].re.match( requestStr ):
+            c = self.commands["DISABLEUSER"]
+            
+            user = c.re.match( requestStr ).groups()[0]
+
+            try:
+                dbconnection.query( db.User )filter( name==user ).update( {db.User.enabled: False} )
+                request.send('done.')
+            except:
+                request.send('failed.')
             
         elif self.commands['SETINTERVALCHECKTD'].re.match( requestStr ):
             c = self.commands["SETINTERVALCHECKTD"]

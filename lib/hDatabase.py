@@ -31,6 +31,8 @@ class User( Base ):
     __tablename__ = 'user'
 
     id = Column( Integer, primary_key=True )
+
+    enable = Column( Boolean, default=True )
     name = Column( String(100) )
     tms_host = Column( String(100) )
     tms_port = Column( Integer )
