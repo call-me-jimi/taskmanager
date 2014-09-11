@@ -379,15 +379,15 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                         line = line.strip("\n")
                         lineSplitted = line.split("\t")
 
-                        if len(line)>0 and len(lineSplitted)==7:
+                        if len(line)>0 and len(lineSplitted)==8:
                             defaultSettings = { 'full_name': '',
                                                 'short_name': '',
                                                 'number_slots': 0,
                                                 'max_number_occupied_slots': 0,
                                                 'additional_info': '',
                                                 'allow_info_server': False,
-                                                'info_server_port': 0,
-                                                'active': False }
+                                                'info_server_port': 0 }
+                            defaultStatus = { 'active': False }
 
                             defaultStatus = { 'active': False }
                             
@@ -397,19 +397,20 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                             # get host setting using dict comprehension, prefer settings from settings file
                             # automatically cast value to type of value given in defaultSettings
                             hostSettings = { key: type(defaultValue)(settings.get(key, defaultValue)) for key,defaultValue in defaultSettings.iteritems() }
+                            hostStatus = { key: type(defaultValue)(settings.get(key, defaultValue)) for key,defaultValue in defaultStatus.iteritems() }
 
                             # add entry in database if not already present
                             try:
                                 dbconnection.query( db.Host ).filter( db.Host.full_name==hostSettings['full_name'] ).one()
                             except NoResultFound:
-                                logger.info( "Add Host {name} to cluster {clusterName}".format(t=str(datetime.now()), name=hostSettings['short_name'], clusterName=clusterName ) )
+                                logger.info( "Add Host {name} to cluster".format(t=str(datetime.now()), name=hostSettings['short_name'] ) )
 
                                 # create entry in database
                                 host = db.Host( **hostSettings )
 
                                 # create HostSummaryInstance
                                 hostSummary = db.HostSummary( host=host,
-                                                              available=hostSettings['active'] )
+                                                              available=hostStatus['active'] )
 
                                 dbconnection.introduce( host, hostSummary )
                     dbconnection.commit()
@@ -632,16 +633,32 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
         # get next waiting job in queue
         if excludedJobIDs:
-            #job = self.dbconnection.query( db.Job ).join( db.CurrentJobStatus ).filter( and_( db.CurrentJobStatus.job_status_type_id==self.databaseIDs['waiting'], not_(db.CurrentJobStatus.job_id.in_(excludedJobIDs) ) ) ).order_by( db.CurrentJobStatus.id ).limit(1).all()
-            job = dbconnection.query( db.Job ).join( db.JobDetails ).filter( and_( db.JobDetails.job_status_id==self.databaseIDs['waiting'], not_(db.Job.id.in_(excludedJobIDs) ) ) ).order_by( db.Job.id ).first()
-            
+            job = dbconnection.query( db.WaitingJob ).\
+                  join( db.Job ).\
+                  join( db.User ).\
+                  filter( db.User.enabled==True ).\
+                  join( db.JobDetails ).\
+                  filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
+                  order_by( db.Job.id ).first()
+            ##job = dbconnection.query( db.Job ).\
+            ##      join( db.JobDetails ).\
+            ##      filter( and_( db.JobDetails.job_status_id==self.databaseIDs['waiting'], not_(db.Job.id.in_(excludedJobIDs) ) ) ).\
+            ##      order_by( db.Job.id ).first()
         else:
-            #job = self.dbconnection.query( db.Job ).join( db.CurrentJobStatus ).filter( db.CurrentJobStatus.job_status_type_id==self.databaseIDs['waiting'] ).order_by( db.CurrentJobStatus.id ).limit(1).all()
-            job = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==self.databaseIDs['waiting'] ).order_by( db.Job.id ).first()
+            job = dbconnection.query( db.WaitingJob ).\
+                  join( db.Job ).\
+                  join( db.User ).\
+                  filter( db.User.enabled==True ).\
+                  join( db.JobDetails ).\
+                  order_by( db.Job.id ).first()
+            ##job = dbconnection.query( db.Job ).\
+            ##      join( db.JobDetails ).\
+            ##      filter( db.JobDetails.job_status_id==self.databaseIDs['waiting'] ).\
+            ##      order_by( db.Job.id ).first()
             
         if job:
             # return job id
-            return job.id
+            return job.job_id
         else:
             # no job was found
             None
@@ -662,27 +679,42 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         # get next waiting job in queue
         #timeLogger.log( "get jobs ..." )
         if excludedJobIDs:
-            jobs = dbconnection.query( db.Job ).\
+            jobs = dbconnection.query( db.WaitingJob ).\
+                   join( db.Job ).\
                    join( db.User ).\
                    filter( db.User.enabled==True ).\
                    join( db.JobDetails ).\
-                   filter( and_( db.JobDetails.job_status_id==self.databaseIDs['waiting'], not_(db.Job.id.in_(excludedJobIDs) ) ) ).\
+                   filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
                    order_by( db.Job.id ).\
                    limit( numJobs ).all()
+            ##jobs = dbconnection.query( db.Job ).\
+            ##       join( db.User ).\
+            ##       filter( db.User.enabled==True ).\
+            ##       join( db.JobDetails ).\
+            ##       filter( and_( db.JobDetails.job_status_id==self.databaseIDs['waiting'], not_(db.Job.id.in_(excludedJobIDs) ) ) ).\
+            ##       order_by( db.Job.id ).\
+            ##       limit( numJobs ).all()
         else:
-            jobs = dbconnection.query( db.Job ).\
+            jobs = dbconnection.query( db.WaitingJob ).\
+                   join( db.Job ).\
                    join( db.User ).\
                    filter( db.User.enabled==True ).\
                    join( db.JobDetails ).\
-                   filter( db.JobDetails.job_status_id==self.databaseIDs['waiting'] ).\
                    order_by( db.Job.id ).\
                    limit( numJobs ).all()
+            ##jobs = dbconnection.query( db.Job ).\
+            ##       join( db.User ).\
+            ##       filter( db.User.enabled==True ).\
+            ##       join( db.JobDetails ).\
+            ##       filter( db.JobDetails.job_status_id==self.databaseIDs['waiting'] ).\
+            ##       order_by( db.Job.id ).\
+            ##       limit( numJobs ).all()
             
         #timeLogger.log( "number of found jobs: {n}".format(n=len(jobs)) )
         
         if jobs:
             # return job id
-            return [ j.id for j in jobs ]
+            return [ j.job_id for j in jobs ]
         else:
             # no job was found
             None
@@ -1018,6 +1050,9 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
                                         jobHistory = db.JobHistory( job=job,
                                                                     job_status_id = self.TD.databaseIDs['pending'] )
 
+                                        # remove job from waiting list
+                                        dbconnection.query( db.WaitingJob ).filter( db.WaitingJob.job_id==jobID ).delete()
+                                        
                                         dbconnection.introduce( jobHistory )
 
                                         dbconnection.commit()
@@ -1294,7 +1329,9 @@ class TaskDispatcherRequestProcessor(object):
             user = c.re.match( requestStr ).groups()[0]
 
             try:
-                dbconnection.query( db.User )filter( name==user ).update( {db.User.enabled: True} )
+                dbconnection.query( db.User ).filter( db.User.name==user ).update( {db.User.enabled: True} )
+                dbconnection.commit()
+                
                 request.send('done.')
             except:
                 request.send('failed.')
@@ -1305,7 +1342,9 @@ class TaskDispatcherRequestProcessor(object):
             user = c.re.match( requestStr ).groups()[0]
 
             try:
-                dbconnection.query( db.User )filter( name==user ).update( {db.User.enabled: False} )
+                dbconnection.query( db.User ).filter( db.User.name==user ).update( {db.User.enabled: False} )
+                dbconnection.commit()
+                
                 request.send('done.')
             except:
                 request.send('failed.')
@@ -1460,11 +1499,14 @@ class TaskDispatcherRequestProcessor(object):
             jobDetails = db.JobDetails( job=newJob,
                                         job_status_id=TD.databaseIDs['waiting'] )
 
+            # add to waiting job
+            waitingJob = db.WaitingJob( job=newJob )
+
             # set history
             jobHistory = db.JobHistory( job=newJob,
                                         job_status_id = TD.databaseIDs['waiting'] )
             
-            dbconnection.introduce( newJob, jobDetails, jobHistory )
+            dbconnection.introduce( newJob, jobDetails, jobHistory, waitingJob )
             
             dbconnection.commit()
 
@@ -1513,6 +1555,7 @@ class TaskDispatcherRequestProcessor(object):
             jobIDs = []
 
             logger.info( "Add {n} jobs ...".format(n=len(jsonObj['jobs'])) )
+            
             # iterate over all jobs
             for idx,job in enumerate(jsonObj['jobs']):
                 command = job['command']
@@ -1552,11 +1595,14 @@ class TaskDispatcherRequestProcessor(object):
                 jobDetails = db.JobDetails( job=newJob,
                                             job_status_id=TD.databaseIDs['waiting'] )
 
+                # add as waiting job
+                waitingJob = db.WaitingJob( job=newJob )
+
                 # set history
                 jobHistory = db.JobHistory( job=newJob,
                                             job_status_id = TD.databaseIDs['waiting'] )
 
-                dbconnection.introduce( newJob, jobDetails, jobHistory )
+                dbconnection.introduce( newJob, jobDetails, waitingJob, jobHistory )
 
                 dbconnection.commit()
 
@@ -1624,11 +1670,14 @@ class TaskDispatcherRequestProcessor(object):
                   filter( db.JobDetails.job_id==job.id ).\
                   update( {db.JobDetails.job_status_id: TD.databaseIDs['waiting'] } )
 
+                # add to waiting jobs
+                wJob = db.WaitingJob( job=job )
+                
                 # set history
                 jobHistory = db.JobHistory( job=job,
                                             job_status_id = TD.databaseIDs['waiting'] )
 
-                dbconnection.introduce( jobHistory )
+                dbconnection.introduce( jobHistory, wJob )
 
             # free occupied slots from host
             for h in occupiedSlots:
@@ -1653,11 +1702,14 @@ class TaskDispatcherRequestProcessor(object):
                   filter( db.JobDetails.job_id==job.id ).\
                   update( {db.JobDetails.job_status_id: TD.databaseIDs['waiting'] } )
 
+                # add to waiting jobs
+                wJob = db.WaitingJob( job=job )
+                
                 # set history
                 jobHistory = db.JobHistory( job=job,
                                             job_status_id = TD.databaseIDs['waiting'] )
 
-                dbconnection.introduce( jobHistory )
+                dbconnection.introduce( jobHistory, wJob )
 
             # free occupied slots from host
             for h in occupiedSlots:
@@ -1765,18 +1817,21 @@ class TaskDispatcherRequestProcessor(object):
             
             user = c.re.match( requestStr ).groups()[0]
             
-            jobs = dbconnection.query( db.Job ).join( db.User ).join( db.JobDetails ).filter( and_(db.User.name==user,
-                                                                                                   db.JobDetails.job_status_id==TD.databaseIDs['waiting'] ) ).all()
+            logger.info( "remove all waiting jobs of user {u}".format(u=user ) )
 
-            logger.info( "remove {j} of user {u}".format(j=len(jobs),u=user ) )
+            # remove all waiting jobs
+            dbconnection.query( db.WaitingJob ).\
+                                join( db.Job ).\
+                                join( db.User ).\
+                                filter( db.User.name==user ).delete()
+
+            # remove job from database
+            dbconnection.query( db.Job ).\
+                                join( db.User ).\
+                                join( db.JobDetails ).\
+                                filter( and_(db.User.name==user, db.JobDetails.job_status_id==TD.databaseIDs['waiting'] ) ).delete()
             
-            for job in jobs:
-                logger.info( "remove job {i}".format(i=job.id) )
-                dbconnection.delete( job )
-                
             dbconnection.commit()
-                
-            request.send( "removed {j} of user {u}.".format(j=len(jobs),u=user ) )
             
         else:
             request.send("What do you want?")

@@ -32,7 +32,7 @@ class User( Base ):
 
     id = Column( Integer, primary_key=True )
 
-    enable = Column( Boolean, default=True )
+    enabled = Column( Boolean, default=True )
     name = Column( String(100) )
     tms_host = Column( String(100) )
     tms_port = Column( Integer )
@@ -120,6 +120,15 @@ class JobHistory( Base ):
     job = relationship( 'Job', backref=backref("job_history", cascade="all, delete-orphan") )
     job_status = relationship( 'JobStatus' )
                      
+class WaitingJob( Base ):
+    __tablename__ = 'waiting_job'
+
+    id = Column( Integer, primary_key=True )
+    
+    job_id = Column( Integer, ForeignKey( 'job.id' ) )
+    job = relationship( 'Job' )
+
+    
 class FinishedJob( Base ):
     __tablename__ = 'finished_job'
 

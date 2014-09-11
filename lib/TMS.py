@@ -1718,6 +1718,10 @@ class TaskManagerServerProcessor(object):
             #
             logger.info("[%s] ... job %s has finished" % (threadName,jobID))
 
+        ###    start on each host a TMMS
+        ##elif self.commands["STARTTMMS"].re.match(receivedStr):
+        ##    c = self.commands["STARTTMMS"]
+
 
         #    info that TMMS has been started on host
         elif self.commands["TMMSSTARTED"].re.match(receivedStr):
