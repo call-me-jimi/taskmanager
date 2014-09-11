@@ -102,6 +102,8 @@ class hSocket:
             self.receivedStr = ""
 
             if self.EOCString:
+                m = re.compile( "{eoc}$".format(eoc=self.EOCString) )
+                
                 # listen to socket until EOC string appears
                 while 1:
                     if self.logFileIn:
@@ -112,10 +114,8 @@ class hSocket:
                     if not s:
                         # probably socket has been closed
                         break
-                    elif re.search(self.EOCString,s):
+                    elif m.search(self.receivedStr+s):
                         # end-of-communication-string
-                        #s = s.rstrip("@@")
-                        # remove all @@
                         s = s.replace(self.EOCString,"")
                         self.receivedStr += s
                         break
