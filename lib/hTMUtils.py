@@ -56,7 +56,7 @@ class hPingHost(Thread):
     def run(self):
         """! @brief send a single ping to host, wati for at most one second and catch response"""
         #pingaling = os.popen("ping -q -r -c2 "+self.host,"r")
-        pingaling = os.popen("ping -q -r -c1 -w1 "+self.host, "r")
+        pingaling = os.popen("ping -q -c1 -w1 "+self.host, "r")
 
         reTransmitted = re.compile(r"(\d) (?:packets )?transmitted")
         reReceived = re.compile(r"(\d) (?:packets )?received")
