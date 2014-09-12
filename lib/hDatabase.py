@@ -124,10 +124,12 @@ class WaitingJob( Base ):
     __tablename__ = 'waiting_job'
 
     id = Column( Integer, primary_key=True )
-    
-    job_id = Column( Integer, ForeignKey( 'job.id' ) )
-    job = relationship( 'Job' )
 
+    job_id = Column( Integer, ForeignKey( 'job.id' ) )
+    user_id = Column( Integer, ForeignKey( 'user.id' ) )
+    
+    job = relationship( 'Job' )
+    user = relationship( 'User' )
     
 class FinishedJob( Base ):
     __tablename__ = 'finished_job'
