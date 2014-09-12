@@ -680,8 +680,8 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         #timeLogger.log( "get jobs ..." )
         if excludedJobIDs:
             jobs = dbconnection.query( db.WaitingJob ).\
-                   join( db.Job ).\
                    join( db.User ).\
+                   join( db.Job ).\
                    filter( db.User.enabled==True ).\
                    filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
                    limit( numJobs ).all()
@@ -698,6 +698,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                    join( db.User ).\
                    filter( db.User.enabled==True ).\
                    limit( numJobs ).all()
+            
             ##jobs = dbconnection.query( db.Job ).\
             ##       join( db.User ).\
             ##       filter( db.User.enabled==True ).\
@@ -1783,8 +1784,13 @@ class TaskDispatcherRequestProcessor(object):
             c = self.commands["REMOVEALLJOBSOFUSER"]
             
             user = c.re.match( requestStr ).groups()[0]
+
+            # remove waiting and finished jobs
+            dbconnection.query( db.WaitingJob ).join( db.User ).filter( db.User.name==user ).delete()
+            dbconnection.query( db.FinishedJob ).join( db.Job).join( db.User ).filter( db.User.name==user ).delete()
             
             jobs = dbconnection.query( db.Job ).join( db.User ).filter( db.User.name==user ).all()
+            
             slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
 
             logger.info( "remove {j} of user {u}".format(j=len(jobs),u=user ) )
