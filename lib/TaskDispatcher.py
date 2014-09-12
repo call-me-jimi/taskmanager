@@ -1801,8 +1801,14 @@ class TaskDispatcherRequestProcessor(object):
             user = c.re.match( requestStr ).groups()[0]
 
             # remove waiting and finished jobs
-            dbconnection.query( db.WaitingJob ).join( db.User ).filter( db.User.name==user ).delete()
+            
+            wJobs = dbconnection.query( db.WaitingJob ).join( db.User ).filter( db.User.name==user ).all()
+            for wJob in wJobs:
+                dbconnection.delete( wJob )
+                
             dbconnection.query( db.FinishedJob ).join( db.Job).join( db.User ).filter( db.User.name==user ).delete()
+            for fJob in fJobs:
+                dbconnection.delete( fJob )
             
             jobs = dbconnection.query( db.Job ).join( db.User ).filter( db.User.name==user ).all()
             
