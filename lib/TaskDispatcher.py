@@ -683,9 +683,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                    join( db.Job ).\
                    join( db.User ).\
                    filter( db.User.enabled==True ).\
-                   join( db.JobDetails ).\
                    filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
-                   order_by( db.Job.id ).\
                    limit( numJobs ).all()
             ##jobs = dbconnection.query( db.Job ).\
             ##       join( db.User ).\
@@ -699,8 +697,6 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                    join( db.Job ).\
                    join( db.User ).\
                    filter( db.User.enabled==True ).\
-                   join( db.JobDetails ).\
-                   order_by( db.Job.id ).\
                    limit( numJobs ).all()
             ##jobs = dbconnection.query( db.Job ).\
             ##       join( db.User ).\
