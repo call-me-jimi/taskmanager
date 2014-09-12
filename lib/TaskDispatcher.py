@@ -685,6 +685,14 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                    filter( db.User.enabled==True ).\
                    filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
                    limit( numJobs ).all()
+            
+            ##jobs = dbconnection.query( db.WaitingJob ).\
+            ##       join( db.Job ).\
+            ##       join( db.User ).\
+            ##       filter( db.User.enabled==True ).\
+            ##       filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
+            ##       limit( numJobs ).all()
+            
             ##jobs = dbconnection.query( db.Job ).\
             ##       join( db.User ).\
             ##       filter( db.User.enabled==True ).\
@@ -694,10 +702,15 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             ##       limit( numJobs ).all()
         else:
             jobs = dbconnection.query( db.WaitingJob ).\
-                   join( db.Job ).\
                    join( db.User ).\
                    filter( db.User.enabled==True ).\
                    limit( numJobs ).all()
+            
+            ##jobs = dbconnection.query( db.WaitingJob ).\
+            ##       join( db.Job ).\
+            ##       join( db.User ).\
+            ##       filter( db.User.enabled==True ).\
+            ##       limit( numJobs ).all()
             
             ##jobs = dbconnection.query( db.Job ).\
             ##       join( db.User ).\
@@ -1497,7 +1510,8 @@ class TaskDispatcherRequestProcessor(object):
                                         job_status_id=TD.databaseIDs['waiting'] )
 
             # add to waiting job
-            waitingJob = db.WaitingJob( job=newJob )
+            waitingJob = db.WaitingJob( job=newJob,
+                                        user_id=user_id )
 
             # set history
             jobHistory = db.JobHistory( job=newJob,
@@ -1593,7 +1607,8 @@ class TaskDispatcherRequestProcessor(object):
                                             job_status_id=TD.databaseIDs['waiting'] )
 
                 # add as waiting job
-                waitingJob = db.WaitingJob( job=newJob )
+                waitingJob = db.WaitingJob( job=newJob,
+                                            user_id=user_id )
 
                 # set history
                 jobHistory = db.JobHistory( job=newJob,
