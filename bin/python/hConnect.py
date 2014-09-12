@@ -173,7 +173,7 @@ if __name__ == '__main__':
     ca_certs = None
 
     # set server host and port to which we try to connect
-    if args.connectToTMS:
+    if hasattr(args,'connectToTMS') and args.connectToTMS:
         host = tmsHost
         port = tmsPort
     else:
