@@ -1806,7 +1806,7 @@ class TaskDispatcherRequestProcessor(object):
             for wJob in wJobs:
                 dbconnection.delete( wJob )
                 
-            dbconnection.query( db.FinishedJob ).join( db.Job).join( db.User ).filter( db.User.name==user ).all()
+            fJobs = dbconnection.query( db.FinishedJob ).join( db.Job).join( db.User ).filter( db.User.name==user ).all()
             for fJob in fJobs:
                 dbconnection.delete( fJob )
             
