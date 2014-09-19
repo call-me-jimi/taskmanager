@@ -69,7 +69,7 @@ class Job( Base ):
     __tablename__ = 'job'
 
     id = Column( Integer, primary_key=True )
-    user_id = Column( Integer, ForeignKey('user.id') )
+    user_id = Column( Integer, ForeignKey('user.id'), nullable=False )
     
     command = Column( String(2048) )
     info_text = Column( String(512) )
@@ -112,9 +112,9 @@ class JobHistory( Base ):
 
     id = Column( Integer, primary_key=True )
 
-    job_id = Column( Integer, ForeignKey( 'job.id' ) )
+    job_id = Column( Integer, ForeignKey( 'job.id' ), nullable=False )
     datetime = Column( DateTime, default = datetime.datetime.now )
-    job_status_id = Column( Integer, ForeignKey( 'job_status.id' ) )
+    job_status_id = Column( Integer, ForeignKey( 'job_status.id' ), nullable=False )
     checked  = Column( Boolean, default=False )
     
     job = relationship( 'Job', backref=backref("job_history", cascade="all, delete-orphan") )
@@ -125,8 +125,8 @@ class WaitingJob( Base ):
 
     id = Column( Integer, primary_key=True )
 
-    job_id = Column( Integer, ForeignKey( 'job.id' ) )
-    user_id = Column( Integer, ForeignKey( 'user.id' ) )
+    job_id = Column( Integer, ForeignKey( 'job.id' ), nullable=False )
+    user_id = Column( Integer, ForeignKey( 'user.id' ), nullable=False )
     
     job = relationship( 'Job' )
     user = relationship( 'User' )
@@ -136,7 +136,7 @@ class FinishedJob( Base ):
 
     id = Column( Integer, primary_key=True )
     
-    job_id = Column( Integer, ForeignKey( 'job.id' ) )
+    job_id = Column( Integer, ForeignKey( 'job.id' ), nullable=False )
     job = relationship( 'Job' )
     
 
@@ -173,7 +173,7 @@ class HostSummary( Base ):
 
     id = Column( Integer, primary_key=True )
 
-    host_id = Column( Integer, ForeignKey( 'host.id' ) )
+    host_id = Column( Integer, ForeignKey( 'host.id' ), nullable=False )
     
     available = Column( Boolean, default=False )  # whether host is in principle available to be included
     reachable = Column( Boolean, default=False )  # whether host is reachable, i.e., ready to be included
@@ -194,7 +194,7 @@ class HostLoad( Base ):
     loadavg_5min = Column( Float, default=0 )
     loadavg_10min = Column( Float, default=0 )
 
-    host_id = Column( Integer, ForeignKey( 'host.id' ) )
+    host_id = Column( Integer, ForeignKey( 'host.id' ), nullable=False )
 
     host = relationship( 'Host', backref="host_load" )
 
