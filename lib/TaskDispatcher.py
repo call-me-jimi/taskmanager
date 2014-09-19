@@ -887,6 +887,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                 # no jobs so far in the database
                 counts = {}
 
+            t = datetime.now()
             slotInfo = dbconnection.query( func.count('*'),
                                            func.sum( db.Host.max_number_occupied_slots ), 
                                            func.sum( db.HostSummary.number_occupied_slots ) ).select_from( db.Host ).join( db.HostSummary, db.HostSummary.host_id==db.Host.id ).filter( db.HostSummary.active==True ).one()
@@ -895,7 +896,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                 slotInfo = (0, 0, 0)
 
             href = "--------------------------------------------------"
-            info = "STATUS OF TASKDISPATCHER ON {h}:{p}".format(t=str(datetime.now()), h=self.host, p=self.port)
+            info = "[{t}] STATUS OF TASKDISPATCHER ON {h}:{p}".format(t=t, h=self.host, p=self.port)
             status = ""
             status += "{s:>20} : {value}\n".format(s="active cluster", value=self.active )
             status += "{s:>20} : {value}\n".format(s="active hosts", value=slotInfo[0] )
