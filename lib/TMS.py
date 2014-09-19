@@ -542,6 +542,18 @@ class TaskManagerServerProcessor(object):
                                             regExp = "^lsthreads$",
                                             help = "return list of active threads")
         
+        self.commands["INVOKEALLTMMS"] = hCommand(command_name = "invokealltmms",
+                                            regExp = "^invokealltmms$",
+                                            help = "invoke on each active host a tmms")
+        
+        self.commands["SHUTDOWNALLTMMS"] = hCommand(command_name = "shutdownalltmms",
+                                            regExp = "^shutdownalltmms$",
+                                            help = "kill shutdown all known tmms")
+        
+        self.commands["LSTMMS"] = hCommand(command_name = "lstmms",
+                                            regExp = "^lstmms$",
+                                            help = "return list all known tmms")
+        
         self.commands["LSACTIVECLUSTER"] = hCommand(command_name = 'lsactivecluster',
                                                    regExp = '^lsactivecluster$',
                                                    help = "return active cluster hosts")
@@ -724,6 +736,9 @@ class TaskManagerServerProcessor(object):
                 "CHECK",
                 "HELP",
                 "LSTHREADS",
+                "LSTMMS",
+                "INVOKEALLTMMS",
+                "SHUTDOWNALLTMMS",
                 "SETPERSISTENT",
                 "UNSETPERSISTENT",
                 "GETTDSTATUS",
@@ -765,6 +780,76 @@ class TaskManagerServerProcessor(object):
         elif self.commands["LSTHREADS"].re.match(receivedStr):
             request.send(join(map(lambda t: t.getName(),threading.enumerate()),"\n"))
 
+        #  get list of tmms
+        elif self.commands["LSTMMS"].re.match(receivedStr):
+            # connect to database
+            dbconnection = hDBConnection()
+            
+            response = ""
+
+            hosts = dict( dbconnection.query( db.Host.id, db.Host.full_name ).all() )
+            for idx,hostID in enumerate(self.TMS.cluster):
+                response += "{idx} - [host:{host}] [port:{port}] [status:{status}]\n".format( idx=idx,
+                                                                                              host=hosts[hostID],
+                                                                                              port=self.TMS.cluster[ hostID ].port,
+                                                                                              status="running" if self.TMS.cluster[ hostID ].isRunning() else "not running" )
+            
+            if response:
+                request.send( response )
+            else:
+                request.send("no tmms known.")
+                
+            dbconnection.remove()
+
+        elif self.commands["INVOKEALLTMMS"].re.match( receivedStr ):
+            # connect to database
+            dbconnection = hDBConnection()
+
+            hosts = dbconnection.query( db.Host ).join( db.HostSummary ).filter( and_(db.HostSummary.available==True,
+                                                                                        db.HostSummary.reachable==True,
+                                                                                        db.HostSummary.active==True ) ).all()
+
+            for host in hosts:
+                hostID = host.id
+                hostName = host.full_name
+
+                # invoke TMMS if necessary and add to cluster
+                if not hostID in self.TMS.cluster or not self.TMS.cluster[ hostID ].isRunning():
+                    logger.info('Invoke a TMMS on {host}'.format(host=hostName))
+                    TMMS = hServerProxy( user = self.TMS.user,
+                                         host = hostName,
+                                         serverType = 'TMMS',
+                                         sslConnection = self.TMS.sslConnection,
+                                         keyfile = self.TMS.keyfile,
+                                         certfile = self.TMS.certfile,
+                                         ca_certs = self.TMS.ca_certs )
+                    TMMS.run()
+
+                    if not TMMS.running:
+                        sys.stderr.write("Could not start a TMMS on {hsot}!\n".format(host=hostName))
+                    else:
+                        logger.info('[{th}] ... TMMS has been started on {h}:{p}'.format(th=threadName, h=TMMS.host, p=TMMS.port) )
+
+                    self.TMS.cluster[hostID] = TMMS
+                        
+                else:
+                    logger.info('TMMS on {host} is already running'.format(host=host))
+
+            dbconnection.remove()
+
+            request.send("done")
+                
+        #  shutdown all known tmms
+        elif self.commands["SHUTDOWNALLTMMS"].re.match(receivedStr):
+            for hostID in self.TMS.cluster:
+                tmms = self.TMS.cluster[ hostID ]
+                
+                logger.info('Shutdown TMMS on {host}:{port}'.format(host=tmms.host, port=tmms.port))
+
+                tmms.shutdown()
+
+            request.send( "done" )
+            
         #  set socket connection persistent, i.e. do not close socket
         elif self.commands["SETPERSISTENT"].re.match(receivedStr):
             request.send("connection has been set persistent")
@@ -782,7 +867,7 @@ class TaskManagerServerProcessor(object):
             interval = int( c.re.match( requestStr ).groups()[0] )
 
             # update value
-            TD.loopPrintStatusInterval = interval
+            TMS.loopPrintStatusInterval = interval
 
             request.send('done.')
             
@@ -977,7 +1062,7 @@ class TaskManagerServerProcessor(object):
             
             job = dbconnection.query( db.Job ).get( int(jobID) )
 
-            if job:
+            if job and job.user_id==self.TMS.userID:
                 response = ""
                 response += "{s:>20} : {value}\n".format(s="job id", value=job.id )
                 response += "{s:>20} : {value}\n".format(s="command", value=job.command )
@@ -1132,9 +1217,11 @@ class TaskManagerServerProcessor(object):
             # connect to database
             dbconnection = hDBConnection()
 
-            jobs = dbconnection.query( db.Job ).filter( or_(db.Job.command.ilike( '%{s}%'.format(s=matchString) ),
-                                                            db.Job.info_text.ilike( '%{s}%'.format(s=matchString) ),
-                                                            db.Job.group.ilike( '%{s}%'.format(s=matchString) ) ) ).all()
+            jobs = dbconnection.query( db.Job ).\
+                   filter( db.Job.user_id==self.TMS.userID ).\
+                   filter( or_(db.Job.command.ilike( '%{s}%'.format(s=matchString) ),
+                               db.Job.info_text.ilike( '%{s}%'.format(s=matchString) ),
+                               db.Job.group.ilike( '%{s}%'.format(s=matchString) ) ) ).all()
             
 
             response = ""

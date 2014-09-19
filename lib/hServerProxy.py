@@ -159,8 +159,24 @@ class hServerProxy(object):
                 
             status = self.invokeServer( cnt )
 
+    def isRunning( self ):
+        """! @brief check if tmms is running
 
+        @return (boolean) True|False
+        """
 
+        connStatus = self.connectToServer( 1 )
+
+        if connStatus == 1:
+            # Server is running and understands me
+            return True
+        elif connStatus == 2:
+            # Server is running but do not understands me
+            return False
+        elif connStatus == 3:
+            # Server is not running
+            return False
+        
 
     def connectToServer(self, cnt=1):
         """ check for Server
@@ -347,3 +363,22 @@ class hServerProxy(object):
             self.openConnection = False
             sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
             traceback.print_exc(file=sys.stderr)
+
+    def shutdown( self ):
+        """! brief shutdown server """
+
+        command = "shutdown"
+        self.clientSock = hSocket(host=self.host,
+                                  port=self.port,
+                                  EOCString=self.EOCString,
+                                  sslConnection=self.sslConnection,
+                                  certfile=self.certfile,
+                                  keyfile=self.keyfile,
+                                  ca_certs=self.ca_certs,
+                                  catchErrors=False)
+        
+        self.clientSock.send(command)
+
+        return "done"
+            
+        

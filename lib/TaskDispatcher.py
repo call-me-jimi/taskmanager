@@ -663,12 +663,15 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             # no job was found
             None
 
-    def getNextJobs( self, numJobs=1, excludedJobIDs=set([]) ):
+    def getNextJobs( self, numJobs=1, excludedJobIDs=set([]), returnInstances=False ):
         """! @brief get next jobs which will be send to cluster 
 
         @param numJobs (int) maximal number of jobs which will be returned
         @param excludedJobIDs (set) set of jobIDs which should not be considered
+        @param returnInstances (bool) if True return db.Job instances otherwise return job ids
 
+        @return (list) job ids or db.Job
+        
         @todo think about something more sophisticated than just taking the next in queue
         """
         #timeLogger = TimeLogger( prefix="getNextJobs" )
@@ -724,10 +727,13 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         
         if jobs:
             # return job id
-            return [ j.job_id for j in jobs ]
+            if returnInstances:
+                return jobs
+            else:
+                return [ j.job_id for j in jobs ]
         else:
             # no job was found
-            None
+            return []
 
         
     def getVacantHost( self, slots, excludedHosts=set([]) ):
@@ -1187,9 +1193,9 @@ class TaskDispatcherRequestProcessor(object):
                                            regExp = '^lswjobs$',
                                            help = "return waiting jobs")
         
-        ##self.commands["LSPJOBS"] = hCommand(command_name = 'lspjobs',
-        ##                                   regExp = '^lspjobs$',
-        ##                                   help = "return pending jobs")
+        self.commands["LSPJOBS"] = hCommand(command_name = 'lspjobs',
+                                           regExp = '^lspjobs$',
+                                           help = "return pending jobs")
         
         self.commands["LSRJOBS"] = hCommand(command_name = 'lsrjobs',
                                            regExp = '^lsrjobs$',
@@ -1198,7 +1204,22 @@ class TaskDispatcherRequestProcessor(object):
         self.commands["LSFJOBS"] = hCommand(command_name = 'lsfjobs',
                                            regExp = 'lsfjobs',
                                            help = "return finished jobs")
+
+        self.commands["LAJOB"] = hCommand(command_name = 'lajob',
+                                          arguments = "<jobID>",
+                                          regExp = 'lajob:(.*)',
+                                          help = "return job info about job with given jobID")
         
+        self.commands["FINDJOBS"] = hCommand(command_name = 'findjobs',
+                                            arguments = "<matchString>",
+                                            regExp = 'findjobs:(.*)',
+                                            help = "return all jobs which match the search string in command, info text and group.")
+
+        self.commands["LSNEXTJOBS"] = hCommand(command_name = 'lsnextjobs',
+                                               arguments = "<number>",
+                                               regExp = '^lsnextjobs:(.*)',
+                                               help = "return next jobs which will be send to cluster")
+
         self.commands["ACTIVATEHOST"] = hCommand(command_name = 'activatehost',
                                                  arguments = "<host>",
                                                  regExp = '^activatehost:(.*)',
@@ -1304,14 +1325,14 @@ class TaskDispatcherRequestProcessor(object):
                     load = 'n.a.'
 
                 hostInfo = { 'i': idx,
-                             'name': host.short_name,
+                             'name': host.full_name,
                              'status': 'active' if host.host_summary.active else 'reachable' if host.host_summary.reachable else 'available' if host.host_summary.available else 'not available',
                              'occupiedSlots': host.host_summary.number_occupied_slots,
                              'freeSlots': host.max_number_occupied_slots - host.host_summary.number_occupied_slots,
                              'maxSlots': host.max_number_occupied_slots,
                              'load': load
                              }
-                response += "{i} - [name:{name}] [status:{status}] [free slots:{freeSlots}/{maxSlots}] [load:{load}]\n".format( **hostInfo )
+                response += "{i} - [host:{name}] [status:{status}] [free slots:{freeSlots}/{maxSlots}] [load:{load}]\n".format( **hostInfo )
 
             if response:
                 request.send( response )
@@ -1650,24 +1671,202 @@ class TaskDispatcherRequestProcessor(object):
             request.send( json.dumps(response) )
 
         elif self.commands["LSWJOBS"].re.match( requestStr ):
-            jobs = dbconnection.query( db.Job ).join( db.Details ).filter( db.Details.job_status_id==TD.databaseIDs['waiting']).all()
-            for job in jobs:
-                print job
+            # connect to database
+            dbconnection = hDBConnection()
+            
+            wJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['waiting'] ).all()
 
-            request.send( "{n} jobs".format(n=len(jobs)) )
+            response = ""
+            for idx,job in enumerate(wJobs):
+                response += "{i} - [jobid:{id}] [user:{user}] [status:waiting since {t}] [group:{group}] [info:{info}] [command:{command}{dots}]\n".format( i=idx,
+                                                                                                                                                            id=job.id,
+                                                                                                                                                            user=job.user.name,
+                                                                                                                                                            t=str(job.job_history[-1].datetime),
+                                                                                                                                                            group=job.group,
+                                                                                                                                                            info=job.info_text,
+                                                                                                                                                            command=job.command[:30],
+                                                                                                                                                            dots="..." if len(job.command)>30 else "" )
+
+            if response:
+                request.send( response )
+            else:
+                request.send("no waiting jobs")
+
+            dbconnection.remove()
+
+        #  get pending jobs
+        elif self.commands["LSPJOBS"].re.match(requestStr):
+            # connect to database
+            dbconnection = hDBConnection()
+            
+            pJobs = dbconnection.query( db.Job,db.JobDetails ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['pending'] ).all()
+
+            response = ""
+            for idx,(job,jobDetails) in enumerate(pJobs):
+                response += "{i} - [jobid:{id}] [user:{user}] [status:pending on {host} since {t}] [group:{group}] [info:{info}] [command:{command}{dots}]\n".format( i=idx,
+                                                                                                                                                                      id=job.id,
+                                                                                                                                                                      user=job.user.name,
+                                                                                                                                                                      host=jobDetails.host.short_name,
+                                                                                                                                                                      t=str(job.job_history[-1].datetime),
+                                                                                                                                                                      group=job.group,
+                                                                                                                                                                      info=job.info_text,
+                                                                                                                                                                      command=job.command[:30],
+                                                                                                                                                                      dots="..." if len(job.command)>30 else "" )
+            if response:
+                request.send( response )
+            else:
+                request.send("no pending jobs")
+
+            dbconnection.remove()
+
+
+        #  get running jobs
+        elif self.commands["LSRJOBS"].re.match(requestStr):
+            # connect to database
+            dbconnection = hDBConnection()
+            
+            pJobs = dbconnection.query( db.Job, db.JobDetails ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['running'] ).all()
+
+            response = ""
+            for idx,(job,jobDetails) in enumerate(pJobs):
+                response += "{i} - [jobid:{id}] [user:{user}] [status:running on {host} since {t}] [group:{group}] [info:{info}] [command:{command}{dots}]\n".format( i=idx,
+                                                                                                                                                                      id=job.id,
+                                                                                                                                                                      user=job.user.name,
+                                                                                                                                                                      host=jobDetails.host.short_name,
+                                                                                                                                                                      t=str(job.job_history[-1].datetime),
+                                                                                                                                                                      group=job.group,
+                                                                                                                                                                      info=job.info_text,
+                                                                                                                                                                      command=job.command[:30],
+                                                                                                                                                                      dots="..." if len(job.command)>30 else "" )
+            if response:
+                request.send( response )
+            else:
+                request.send("no running jobs")
+
+            dbconnection.remove()
+
+        #  get finished jobs
+        elif self.commands["LSFJOBS"].re.match(requestStr):
+            # connect to database
+            dbconnection = hDBConnection()
+
+            rJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['finished'] ).all()
+
+            response = ""
+            for idx,job in enumerate(rJobs):
+                response += "{i} - [jobid:{id}] [user:{user}] [status:finished since {t}] [group:{group}] [info:{info}] [command:{command}{dots}]\n".format( i=idx,
+                                                                                                                                                             id=job.id,
+                                                                                                                                                             user=job.user.name,
+                                                                                                                                                             t=str(job.job_history[-1].datetime),
+                                                                                                                                                             group=job.group,
+                                                                                                                                                             info=job.info_text,
+                                                                                                                                                             command=job.command[:30],
+                                                                                                                                                             dots="..." if len(job.command)>30 else "" )
+            if response:
+                request.send( response )
+            else:
+                request.send("no finished jobs")
+
+            dbconnection.remove()
                 
-        ##elif self.commands["PROCESSFINISHED"].re.match( requestStr ):
-        ##    c = self.commands["PROCESSFINISHED"]
-        ##
-        ##    jobID = c.re.match( requestStr ).groups()[0]
-        ##    job = dbconnection.query( db.Job ).get( jobID )
-        ##
-        ##    # free occupied slots from host
-        ##    dbconnection.query( db.HostSummary ).\
-        ##      filter( db.HostSummary.host_id==job.job_details.host_id ).\
-        ##      update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots - job.slots } )
-        ##
-        ##    dbconnection.commit()
+        #  get job info of job with given jobID
+        elif self.commands["LAJOB"].re.match(requestStr):
+            c = self.commands["LAJOB"]
+
+            jobID = c.re.match(requestStr).groups()[0]
+
+            # connect to database
+            dbconnection = hDBConnection()
+            
+            job = dbconnection.query( db.Job ).get( int(jobID) )
+
+            if job:
+                response = ""
+                response += "{s:>20} : {value}\n".format(s="job id", value=job.id )
+                response += "{s:>20} : {value}\n".format(s="command", value=job.command )
+                response += "{s:>20} : {value}\n".format(s="info text", value=job.info_text )
+                response += "{s:>20} : {value}\n".format(s="group", value=job.group )
+                response += "{s:>20} : {value}\n".format(s="stdout", value=job.stdout )
+                response += "{s:>20} : {value}\n".format(s="stderr", value=job.stderr )
+                response += "{s:>20} : {value}\n".format(s="logfile", value=job.logfile )
+                response += "{s:>20} : {value}\n".format(s="excludedHosts", value=job.excluded_hosts )
+                response += "{s:>20} : {value}\n".format(s="slots", value=job.slots )
+                
+                for idx,hist in enumerate(job.job_history):
+                    if idx==0: s = "status"
+                    else: s=""
+                    
+                    response += "{s:>20} : [{t}] {status}\n".format(s=s, t=str(hist.datetime), status=hist.job_status.name )
+                    
+                response += "{s:>20} : {value}\n".format(s="host", value=job.job_details.host.short_name )
+                response += "{s:>20} : {value}\n".format(s="pid", value=job.job_details.pid )
+                response += "{s:>20} : {value}\n".format(s="return code", value=job.job_details.return_code )
+
+                request.send( response )
+            else:
+                request.send("unkown job.")
+
+
+        #  get all jobs with match the search string
+        elif self.commands["FINDJOBS"].re.match(requestStr):
+            c = self.commands["FINDJOBS"]
+
+            matchString = c.re.match(requestStr).groups()[0]
+
+            # connect to database
+            dbconnection = hDBConnection()
+
+            jobs = dbconnection.query( db.Job ).filter( or_(db.Job.command.ilike( '%{s}%'.format(s=matchString) ),
+                                                            db.Job.info_text.ilike( '%{s}%'.format(s=matchString) ),
+                                                            db.Job.group.ilike( '%{s}%'.format(s=matchString) ) ) ).all()
+            
+
+            response = ""
+            for idx,job in enumerate(jobs):
+                response += "{i} - [jobid:{id}] [user:{user}] [status:{status}] [group:{group}] [info:{info}] [command:{command}{dots}]\n".format( i=idx,
+                                                                                                                                                   id=job.id,
+                                                                                                                                                   user=job.user.name,
+                                                                                                                                                   status=job.job_details.job_status.name,
+                                                                                                                                                   group=job.group,
+                                                                                                                                                   info=job.info_text,
+                                                                                                                                                   command=job.command[:30],
+                                                                                                                                                   dots="..." if len(job.command)>30 else "" )
+
+            if response:
+                request.send( response )
+            else:
+                request.send("no jobs found")
+
+            dbconnection.remove()
+
+            
+
+        elif self.commands["LSNEXTJOBS"].re.match(requestStr):
+            c = self.commands["LSNEXTJOBS"]
+
+            number = int( c.re.match(requestStr).groups()[0] )
+
+            jobs = TD.getNextJobs( numJobs=number, returnInstances=True )
+
+            response = ""
+            for idx,wJob in enumerate(jobs):
+                job = wJob.job
+                response += "{i} - [jobid:{id}] [user:{user}] [status:{status}] [group:{group}] [info:{info}] [command:{command}{dots}]\n".format( i=idx,
+                                                                                                                                                   id=job.id,
+                                                                                                                                                   user=job.user.name,
+                                                                                                                                                   status=job.job_details.job_status.name,
+                                                                                                                                                   group=job.group,
+                                                                                                                                                   info=job.info_text,
+                                                                                                                                                   command=job.command[:30],
+                                                                                                                                                   dots="..." if len(job.command)>30 else "" )
+
+            if response:
+                request.send( response )
+            else:
+                request.send("no jobs found to send")
+
+            dbconnection.remove()
+            
             
         elif self.commands["SETALLPJOBSASWAITING"].re.match( requestStr ):
             pJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['pending'] ).all()
