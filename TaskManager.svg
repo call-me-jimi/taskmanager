@@ -1,0 +1,950 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="1052.3622"
+   height="744.09448"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="TaskManager.svg">
+  <defs
+     id="defs4">
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient3992">
+      <stop
+         style="stop-color:#000000;stop-opacity:1;"
+         offset="0"
+         id="stop3994" />
+      <stop
+         style="stop-color:#000000;stop-opacity:0"
+         offset="1"
+         id="stop3996" />
+    </linearGradient>
+    <marker
+       inkscape:stockid="Arrow2Send"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow2Send"
+       style="overflow:visible;">
+      <path
+         id="path4172"
+         style="font-size:12.0;fill-rule:evenodd;stroke-width:0.62500000;stroke-linejoin:round;"
+         d="M 8.7185878,4.0337352 L -2.2072895,0.016013256 L 8.7185884,-4.0017078 C 6.9730900,-1.6296469 6.9831476,1.6157441 8.7185878,4.0337352 z "
+         transform="scale(0.3) rotate(180) translate(-2.3,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow2Send"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow2Send-1"
+       style="overflow:visible">
+      <path
+         inkscape:connector-curvature="0"
+         id="path4172-6"
+         style="font-size:12px;fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         transform="matrix(-0.3,0,0,-0.3,0.69,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow2Send"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="marker5818"
+       style="overflow:visible">
+      <path
+         inkscape:connector-curvature="0"
+         id="path5820"
+         style="font-size:12px;fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         transform="matrix(-0.3,0,0,-0.3,0.69,0)" />
+    </marker>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath5921">
+      <rect
+         style="color:#000000;fill:#000080;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+         id="rect5923"
+         width="148.57143"
+         height="76.428574"
+         x="269.28571"
+         y="815.52307" />
+    </clipPath>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3992"
+       id="linearGradient3998"
+       x1="70"
+       y1="-1064.4769"
+       x2="580"
+       y2="-1183.0483"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.98994949"
+     inkscape:cx="483.01821"
+     inkscape:cy="387.71672"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1840"
+     inkscape:window-height="1083"
+     inkscape:window-x="0"
+     inkscape:window-y="27"
+     inkscape:window-maximized="0" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-308.2677)"
+     style="display:inline">
+    <rect
+       style="color:#000000;fill:#b7bdc4;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.99999994;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect3040"
+       width="106.37252"
+       height="405.39493"
+       x="209.34428"
+       y="448.52533" />
+    <text
+       xml:space="preserve"
+       style="font-size:18.99775314px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+       x="195.39044"
+       y="412.88635"
+       id="text3044"
+       sodipodi:linespacing="125%"
+       transform="scale(1.0000088,0.99999121)"><tspan
+         sodipodi:role="line"
+         id="tspan3046"
+         x="195.39044"
+         y="412.88635">TaskDispatcher</tspan></text>
+    <rect
+       style="color:#000000;fill:#b7bdc4;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.99999994;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect3042"
+       width="175.56111"
+       height="398.61005"
+       x="653.39142"
+       y="452.76501"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path4772"
+       d="m 508.89855,524.47907 156.22547,0.69216"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       d="M 457.6292,523.50474 327.15095,522.90503"
+       id="path5005"
+       inkscape:connector-curvature="0"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path5007"
+       d="m 323.1202,517.21441 132.4211,0.5997"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path5011"
+       d="m 251.24936,861.10162 0.0728,43.4431"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send);stroke-dashoffset:0"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <g
+       transform="matrix(0.46504952,0,0,0.46486594,411.57335,307.95547)"
+       id="g3096">
+      <rect
+         transform="translate(0,308.2677)"
+         y="122.66591"
+         x="108.57143"
+         height="75.714287"
+         width="97.14286"
+         id="rect3023"
+         style="color:#000000;fill:#b7bdc4;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:2.15073323;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text3048"
+         y="465.43402"
+         x="122.78351"
+         style="font-size:24px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+         xml:space="preserve"><tspan
+           y="465.43402"
+           x="122.78351"
+           id="tspan3050"
+           sodipodi:role="line">TMS</tspan><tspan
+           y="495.43402"
+           x="122.78351"
+           sodipodi:role="line"
+           id="tspan4170">user 1</tspan></text>
+    </g>
+    <g
+       id="g3116"
+       transform="matrix(0.46504952,0,0,0.46486594,392.69566,188.87898)">
+      <rect
+         y="598.61292"
+         x="73.221191"
+         height="60.609154"
+         width="137.38075"
+         id="rect2985"
+         style="color:#000000;fill:#c2ae8b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:2.15073323;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text3060"
+         y="636.86133"
+         x="109.21235"
+         style="font-size:22px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+         xml:space="preserve"><tspan
+           y="636.86133"
+           x="109.21235"
+           id="tspan3062"
+           sodipodi:role="line">user 1</tspan></text>
+    </g>
+    <rect
+       style="color:#000000;fill:#fccf65;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.99999994;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect3072"
+       width="145.02876"
+       height="110.25384"
+       x="668.65753"
+       y="482.95764"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <text
+       xml:space="preserve"
+       style="font-size:13.06095505px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+       x="673.13635"
+       y="498.47028"
+       id="text3135"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100"
+       transform="scale(1.0000088,0.99999121)"><tspan
+         sodipodi:role="line"
+         id="tspan3137"
+         x="673.13635"
+         y="498.47028">host 1</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:16.62303352px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+       x="672.03375"
+       y="468.53186"
+       id="text3131"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100"
+       transform="scale(1.0000088,0.99999121)"><tspan
+         sodipodi:role="line"
+         id="tspan3133"
+         x="672.03375"
+         y="468.53186">Computer Cluster</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:23.74719048px;line-height:125%;letter-spacing:0px;word-spacing:0px;color:#000000;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1px;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       x="243.16711"
+       y="654.55646"
+       id="text3078"
+       sodipodi:linespacing="125%"
+       transform="scale(1.0000088,0.99999121)"><tspan
+         sodipodi:role="line"
+         id="tspan3080"
+         x="243.16711"
+         y="654.55646"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold">TD</tspan></text>
+    <path
+       inkscape:export-ydpi="100"
+       inkscape:export-xdpi="100"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       d="m 472.19054,496.75804 0.0508,8.61097"
+       id="path3158"
+       inkscape:connector-curvature="0" />
+    <path
+       inkscape:export-ydpi="100"
+       inkscape:export-xdpi="100"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:connector-curvature="0"
+       id="path3160"
+       d="m 457.6292,606.61917 -130.47825,-0.5997"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)" />
+    <path
+       inkscape:export-ydpi="100"
+       inkscape:export-xdpi="100"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       d="m 323.1202,600.32885 132.4211,0.5997"
+       id="path3162"
+       inkscape:connector-curvature="0" />
+    <g
+       id="g3164"
+       transform="matrix(0.46504952,0,0,0.46486594,411.57335,391.0699)">
+      <rect
+         style="color:#000000;fill:#b7bdc4;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:2.15073323;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+         id="rect3166"
+         width="97.14286"
+         height="75.714287"
+         x="108.57143"
+         y="122.66591"
+         transform="translate(0,308.2677)" />
+      <text
+         xml:space="preserve"
+         style="font-size:24px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+         x="120.95979"
+         y="462.69742"
+         id="text3168"
+         sodipodi:linespacing="125%"><tspan
+           sodipodi:role="line"
+           id="tspan3170"
+           x="120.95979"
+           y="462.69742">TMS</tspan><tspan
+           sodipodi:role="line"
+           x="120.95979"
+           y="492.69742"
+           id="tspan4172">user 2</tspan></text>
+    </g>
+    <g
+       transform="matrix(0.46504952,0,0,0.46486594,392.69566,271.9934)"
+       id="g3172">
+      <rect
+         style="color:#000000;fill:#c2ae8b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:2.15073323;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+         id="rect3174"
+         width="137.38075"
+         height="60.609154"
+         x="73.221191"
+         y="598.61292" />
+      <text
+         xml:space="preserve"
+         style="font-size:22px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+         x="109.21235"
+         y="636.86133"
+         id="text3176"
+         sodipodi:linespacing="125%"><tspan
+           sodipodi:role="line"
+           id="tspan3178"
+           x="109.21235"
+           y="636.86133">user 2</tspan></text>
+    </g>
+    <path
+       inkscape:connector-curvature="0"
+       id="path3180"
+       d="m 472.19054,579.87248 0.0508,8.61096"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <rect
+       y="909.19568"
+       x="204.89787"
+       height="88.203072"
+       width="624.37317"
+       id="rect3182"
+       style="color:#000000;fill:#b7bdc4;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.99999988;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <text
+       sodipodi:linespacing="125%"
+       id="text3184"
+       y="954.79889"
+       x="441.99011"
+       style="font-size:18.99775314px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+       xml:space="preserve"
+       transform="scale(1.0000088,0.99999121)"><tspan
+         y="954.79889"
+         x="441.99011"
+         id="tspan3186"
+         sodipodi:role="line">Database</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text3188"
+       y="414.58252"
+       x="473.41019"
+       style="font-size:18.99775314px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+       xml:space="preserve"
+       transform="scale(1.0000088,0.99999121)"><tspan
+         y="414.58252"
+         x="473.41019"
+         id="tspan3190"
+         sodipodi:role="line">TaskManagerServers</tspan><tspan
+         y="438.32971"
+         x="473.41019"
+         sodipodi:role="line"
+         id="tspan3192">of users</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:18.99775314px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+       x="738.02173"
+       y="418.82312"
+       id="text3194"
+       sodipodi:linespacing="125%"
+       transform="scale(1.0000088,0.99999121)"><tspan
+         sodipodi:role="line"
+         id="tspan3196"
+         x="738.02173"
+         y="418.82312">TaskManagerMenialServers</tspan><tspan
+         id="tspan3198"
+         sodipodi:role="line"
+         x="738.02173"
+         y="442.57031">of users on hosts</tspan></text>
+    <rect
+       style="opacity:0;color:#000000;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.25;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect3202"
+       width="67.849709"
+       height="17.810236"
+       x="674.92334"
+       y="509.06726" />
+    <rect
+       style="opacity:0;color:#000000;fill:url(#linearGradient3998);fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.25000000000000000;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect3204"
+       width="511.42856"
+       height="120"
+       x="67.14286"
+       y="-1183.0483"
+       transform="translate(0,308.2677)" />
+    <rect
+       style="color:#000000;fill:#ececec;fill-opacity:1;stroke:#000000;stroke-width:1.25;stroke-opacity:1;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4000"
+       width="76.888016"
+       height="32.983604"
+       x="671.70795"
+       y="502.66315" />
+    <rect
+       y="538.04553"
+       x="671.70795"
+       height="32.983604"
+       width="76.888016"
+       id="rect4002"
+       style="color:#000000;fill:#ececec;fill-opacity:1;stroke:#000000;stroke-width:1.25;stroke-opacity:1;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <rect
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4006"
+       width="50.463223"
+       height="7.6329579"
+       x="754.64679"
+       y="502.70645" />
+    <rect
+       y="512.03558"
+       x="754.64679"
+       height="7.6329579"
+       width="50.463223"
+       id="rect4008"
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <rect
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4010"
+       width="50.463223"
+       height="7.6329579"
+       x="754.64679"
+       y="521.36475" />
+    <rect
+       y="537.47882"
+       x="755.07086"
+       height="7.6329579"
+       width="50.463223"
+       id="rect4012"
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <rect
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4014"
+       width="50.463223"
+       height="7.6329579"
+       x="755.07086"
+       y="546.80798" />
+    <rect
+       y="556.13715"
+       x="755.49493"
+       height="7.6329579"
+       width="50.463223"
+       id="rect4016"
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4018"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;color:#000000;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1px;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS"
+       transform="matrix(0.59368499,0,0,0.59367455,238.67088,984.43844)"><flowRegion
+         id="flowRegion4020"><rect
+           id="rect4022"
+           width="108.08632"
+           height="32.324883"
+           x="773.77686"
+           y="-797.39832"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS" /></flowRegion><flowPara
+         id="flowPara4024">TMMS</flowPara><flowPara
+         id="flowPara4026">user 1</flowPara></flowRoot>    <flowRoot
+       transform="matrix(0.59368499,0,0,0.59367455,239.83705,1017.4086)"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;color:#000000;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1px;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS"
+       id="flowRoot4028"
+       xml:space="preserve"><flowRegion
+         id="flowRegion4030"><rect
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS"
+           y="-797.39832"
+           x="773.77686"
+           height="32.324883"
+           width="108.08632"
+           id="rect4032" /></flowRegion><flowPara
+         id="flowPara4034">TMMS</flowPara><flowPara
+         id="flowPara4036">user 2</flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4038"
+       style="fill:#000000;stroke:none;stroke-opacity:1;stroke-width:1px;stroke-linejoin:miter;stroke-linecap:butt;color:#000000;fill-opacity:1;fill-rule:nonzero;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;line-height:125%;letter-spacing:0px;word-spacing:0px"><flowRegion
+         id="flowRegion4040"><rect
+           id="rect4042"
+           width="68.571426"
+           height="12.857142"
+           x="478.57144"
+           y="-743.76263" /></flowRegion><flowPara
+         id="flowPara4044"></flowPara></flowRoot>    <rect
+       inkscape:export-ydpi="100"
+       inkscape:export-xdpi="100"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       y="598.72418"
+       x="668.65753"
+       height="110.25384"
+       width="145.02876"
+       id="rect4048"
+       style="color:#000000;fill:#fccf65;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.99999994;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <text
+       inkscape:export-ydpi="100"
+       inkscape:export-xdpi="100"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       sodipodi:linespacing="125%"
+       id="text4050"
+       y="614.23785"
+       x="673.13635"
+       style="font-size:13.06095505px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+       xml:space="preserve"
+       transform="scale(1.0000088,0.99999121)"><tspan
+         y="614.23785"
+         x="673.13635"
+         id="tspan4052"
+         sodipodi:role="line">host 2</tspan></text>
+    <rect
+       y="624.8338"
+       x="674.92334"
+       height="17.810236"
+       width="67.849709"
+       id="rect4054"
+       style="opacity:0;color:#000000;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.25;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <rect
+       y="618.42969"
+       x="671.70795"
+       height="32.983604"
+       width="76.888016"
+       id="rect4056"
+       style="color:#000000;fill:#ececec;fill-opacity:1;stroke:#000000;stroke-width:1.25;stroke-opacity:1;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <rect
+       style="color:#000000;fill:#ececec;fill-opacity:1;stroke:#000000;stroke-width:1.25;stroke-opacity:1;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4058"
+       width="76.888016"
+       height="32.983604"
+       x="671.70795"
+       y="653.81207" />
+    <rect
+       y="618.47296"
+       x="754.64679"
+       height="7.6329579"
+       width="50.463223"
+       id="rect4060"
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <rect
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4062"
+       width="50.463223"
+       height="7.6329579"
+       x="754.64679"
+       y="627.80219" />
+    <rect
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4066"
+       width="50.463223"
+       height="7.6329579"
+       x="755.07086"
+       y="653.24536" />
+    <rect
+       y="662.57446"
+       x="755.07086"
+       height="7.6329579"
+       width="50.463223"
+       id="rect4068"
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <rect
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4070"
+       width="50.463223"
+       height="7.6329579"
+       x="755.49493"
+       y="671.90369" />
+    <flowRoot
+       transform="matrix(0.59368499,0,0,0.59367455,238.67088,1100.205)"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;color:#000000;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1px;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS"
+       id="flowRoot4072"
+       xml:space="preserve"><flowRegion
+         id="flowRegion4074"><rect
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS"
+           y="-797.39832"
+           x="773.77686"
+           height="32.324883"
+           width="108.08632"
+           id="rect4076" /></flowRegion><flowPara
+         id="flowPara4078">TMMS</flowPara><flowPara
+         id="flowPara4080">user 1</flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4082"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;color:#000000;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1px;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS"
+       transform="matrix(0.59368499,0,0,0.59367455,239.83705,1133.1752)"><flowRegion
+         id="flowRegion4084"><rect
+           id="rect4086"
+           width="108.08632"
+           height="32.324883"
+           x="773.77686"
+           y="-797.39832"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS" /></flowRegion><flowPara
+         id="flowPara4088">TMMS</flowPara><flowPara
+         id="flowPara4090">user 2</flowPara></flowRoot>    <path
+       inkscape:connector-curvature="0"
+       id="path4094"
+       d="M 508.57088,605.51656 664.16107,548.75775"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <path
+       inkscape:export-ydpi="100"
+       inkscape:export-xdpi="100"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       d="M 512.81149,608.18809 663.80422,657.2381"
+       id="path4096"
+       inkscape:connector-curvature="0" />
+    <path
+       inkscape:export-ydpi="100"
+       inkscape:export-xdpi="100"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       d="m 509.65681,526.34346 155.23653,99.03222"
+       id="path4098"
+       inkscape:connector-curvature="0" />
+    <rect
+       style="color:#000000;fill:#fccf65;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.99999994;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4100"
+       width="145.02876"
+       height="110.25384"
+       x="668.65753"
+       y="714.06665"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <text
+       xml:space="preserve"
+       style="font-size:13.06095505px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+       x="673.13635"
+       y="729.58136"
+       id="text4102"
+       sodipodi:linespacing="125%"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100"
+       transform="scale(1.0000088,0.99999121)"><tspan
+         sodipodi:role="line"
+         id="tspan4104"
+         x="673.13635"
+         y="729.58136">host 3</tspan></text>
+    <rect
+       style="opacity:0;color:#000000;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.25;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4106"
+       width="67.849709"
+       height="17.810236"
+       x="674.92334"
+       y="740.17627" />
+    <rect
+       style="color:#000000;fill:#ececec;fill-opacity:1;stroke:#000000;stroke-width:1.25;stroke-opacity:1;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4108"
+       width="76.888016"
+       height="32.983604"
+       x="671.70795"
+       y="733.77209" />
+    <rect
+       y="769.15454"
+       x="671.70795"
+       height="32.983604"
+       width="76.888016"
+       id="rect4110"
+       style="color:#000000;fill:#ececec;fill-opacity:1;stroke:#000000;stroke-width:1.25;stroke-opacity:1;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <rect
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4112"
+       width="50.463223"
+       height="7.6329579"
+       x="754.64679"
+       y="733.81543" />
+    <rect
+       y="743.14465"
+       x="754.64679"
+       height="7.6329579"
+       width="50.463223"
+       id="rect4114"
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <rect
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4116"
+       width="50.463223"
+       height="7.6329579"
+       x="754.64679"
+       y="752.47382" />
+    <rect
+       y="768.58783"
+       x="755.07086"
+       height="7.6329579"
+       width="50.463223"
+       id="rect4118"
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4124"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;color:#000000;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1px;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS"
+       transform="matrix(0.59368499,0,0,0.59367455,238.67088,1215.5475)"><flowRegion
+         id="flowRegion4126"><rect
+           id="rect4128"
+           width="108.08632"
+           height="32.324883"
+           x="773.77686"
+           y="-797.39832"
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS" /></flowRegion><flowPara
+         id="flowPara4130">TMMS</flowPara><flowPara
+         id="flowPara4132">user 1</flowPara></flowRoot>    <flowRoot
+       transform="matrix(0.59368499,0,0,0.59367455,239.83705,1248.5176)"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;color:#000000;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1px;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS"
+       id="flowRoot4134"
+       xml:space="preserve"><flowRegion
+         id="flowRegion4136"><rect
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS"
+           y="-797.39832"
+           x="773.77686"
+           height="32.324883"
+           width="108.08632"
+           id="rect4138" /></flowRegion><flowPara
+         id="flowPara4140">TMMS</flowPara><flowPara
+         id="flowPara4142">user 2</flowPara></flowRoot>    <path
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       d="M 458.47264,701.6071 327.17623,701.00739"
+       id="path4144"
+       inkscape:connector-curvature="0"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path4146"
+       d="m 323.12021,695.31677 133.25144,0.5997"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <g
+       transform="matrix(0.46504952,0,0,0.46486594,411.57335,486.05783)"
+       id="g4148">
+      <rect
+         transform="translate(0,308.2677)"
+         y="122.66591"
+         x="108.57143"
+         height="75.714287"
+         width="97.14286"
+         id="rect4150"
+         style="color:#000000;fill:#b7bdc4;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:2.15073323;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text4152"
+         y="459.96078"
+         x="123.69537"
+         style="font-size:24px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+         xml:space="preserve"><tspan
+           y="459.96078"
+           x="123.69537"
+           id="tspan4154"
+           sodipodi:role="line">TMS</tspan><tspan
+           y="489.96078"
+           x="123.69537"
+           sodipodi:role="line"
+           id="tspan4174">user 3</tspan></text>
+    </g>
+    <g
+       id="g4156"
+       transform="matrix(0.46504952,0,0,0.46486594,392.69566,366.98133)">
+      <rect
+         y="598.61292"
+         x="73.221191"
+         height="60.609154"
+         width="137.38075"
+         id="rect4158"
+         style="color:#000000;fill:#c2ae8b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:2.15073323;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+      <text
+         sodipodi:linespacing="125%"
+         id="text4160"
+         y="636.86133"
+         x="109.21235"
+         style="font-size:22px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+         xml:space="preserve"><tspan
+           y="636.86133"
+           x="109.21235"
+           id="tspan4162"
+           sodipodi:role="line">user 2</tspan></text>
+    </g>
+    <path
+       inkscape:export-ydpi="100"
+       inkscape:export-xdpi="100"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       d="m 472.19054,674.8604 0.0508,8.61097"
+       id="path4164"
+       inkscape:connector-curvature="0" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path4166"
+       d="M 511.77711,528.46371 663.95437,735.2098"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path4168"
+       d="M 509.419,606.49188 664.49192,771.9706"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send)"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <rect
+       style="color:#000000;fill:#280b0b;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:1.25;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       id="rect4176"
+       width="50.463223"
+       height="7.6329579"
+       x="755.07086"
+       y="778.08661" />
+    <path
+       inkscape:export-ydpi="100"
+       inkscape:export-xdpi="100"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send);stroke-dashoffset:0"
+       d="m 261.58094,906.82135 -0.0728,-43.4431"
+       id="path4178"
+       inkscape:connector-curvature="0" />
+    <path
+       inkscape:export-ydpi="100"
+       inkscape:export-xdpi="100"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send);stroke-dashoffset:0"
+       d="m 479.14008,859.3025 0.0728,43.44314"
+       id="path4180"
+       inkscape:connector-curvature="0" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path4182"
+       d="m 489.47165,905.02227 -0.0728,-43.44315"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send);stroke-dashoffset:0"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path4184"
+       d="m 704.63193,859.3025 0.0728,43.44314"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send);stroke-dashoffset:0"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+    <path
+       inkscape:export-ydpi="100"
+       inkscape:export-xdpi="100"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow2Send);stroke-dashoffset:0"
+       d="m 714.96351,905.02227 -0.0728,-43.44315"
+       id="path4186"
+       inkscape:connector-curvature="0" />
+    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4188"
+       style="fill:#000000;stroke:none;stroke-opacity:1;stroke-width:1px;stroke-linejoin:miter;stroke-linecap:butt;color:#000000;fill-opacity:1;fill-rule:nonzero;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;line-height:125%;letter-spacing:0px;word-spacing:0px;-inkscape-font-specification:Comic Sans MS Bold;font-family:Comic Sans MS;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:56px"><flowRegion
+         id="flowRegion4190"><rect
+           id="rect4192"
+           width="796.00018"
+           height="165.66502"
+           x="137.38075"
+           y="-1185.2969"
+           style="-inkscape-font-specification:Comic Sans MS Bold;font-family:Comic Sans MS;font-weight:bold;font-style:normal;font-stretch:normal;font-variant:normal;font-size:56px" /></flowRegion><flowPara
+         id="flowPara4194"></flowPara></flowRoot>    <flowRoot
+       xml:space="preserve"
+       id="flowRoot4196"
+       style="fill:#000000;stroke:none;stroke-opacity:1;stroke-width:1px;stroke-linejoin:miter;stroke-linecap:butt;color:#000000;fill-opacity:1;fill-rule:nonzero;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;line-height:125%;letter-spacing:0px;word-spacing:0px"><flowRegion
+         id="flowRegion4198"><rect
+           id="rect4200"
+           width="1068.7413"
+           height="200.01021"
+           x="-30.304577"
+           y="-1253.9873" /></flowRegion><flowPara
+         id="flowPara4202"></flowPara></flowRoot>    <text
+       sodipodi:linespacing="125%"
+       id="text4204"
+       y="363.71039"
+       x="424.47861"
+       style="font-size:33.24606705px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Comic Sans MS;-inkscape-font-specification:Comic Sans MS Bold"
+       xml:space="preserve"
+       transform="scale(1.0000088,0.99999121)"><tspan
+         y="363.71039"
+         x="424.47861"
+         id="tspan4206"
+         sodipodi:role="line">TaskManager</tspan></text>
+    <path
+       inkscape:export-ydpi="100"
+       inkscape:export-xdpi="100"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       style="fill:none;stroke:#000000;stroke-width:3;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:3,9;stroke-dashoffset:0;marker-end:none"
+       d="m 480.5612,819.3032 -0.0728,-34.44755"
+       id="path4221"
+       inkscape:connector-curvature="0" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path4409"
+       d="m 739.85856,845.5945 -0.0728,-14.09301"
+       style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:2, 2;stroke-dashoffset:0;marker-end:none"
+       inkscape:export-filename="/home/hhache/local/opt/TaskManagerSF/etc/Overview.png"
+       inkscape:export-xdpi="100"
+       inkscape:export-ydpi="100" />
+  </g>
+</svg>
