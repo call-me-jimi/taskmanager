@@ -1,3 +1,3 @@
 TaskManager - bin directory
 
-This directory contains all binaries which are related with the handling of the TaskManager. The binaries have to be created by script or hand.
+This directory contains wrapper skripts for programs which handle interaction with the TaskManager.
