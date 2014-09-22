@@ -29,11 +29,8 @@ consoleLog.setFormatter(formatter)
 # add handler to logger
 logger.addHandler(consoleLog)
 
-
-
 homedir = os.environ['HOME']
 user=pwd.getpwuid(os.getuid())[0]
-
 
 # get path to taskmanager. it is assumed that this file is in the bin/python directory of
 # the taskmanager package.
