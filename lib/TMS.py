@@ -826,14 +826,14 @@ class TaskManagerServerProcessor(object):
                     TMMS.run()
 
                     if not TMMS.running:
-                        sys.stderr.write("Could not start a TMMS on {hsot}!\n".format(host=hostName))
+                        sys.stderr.write("Could not start a TMMS on {host}!\n".format(host=hostName))
                     else:
                         logger.info('[{th}] ... TMMS has been started on {h}:{p}'.format(th=threadName, h=TMMS.host, p=TMMS.port) )
 
                     self.TMS.cluster[hostID] = TMMS
                         
                 else:
-                    logger.info('TMMS on {host} is already running'.format(host=host))
+                    logger.info('TMMS on {host} is already running'.format(host=hostName))
 
             dbconnection.remove()
 
