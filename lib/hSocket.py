@@ -5,7 +5,7 @@ from datetime import datetime,timedelta,date
 import traceback
 import sys
 
-class hSocket:
+class hSocket( object ):
     """ class for socket communication"""
     def __init__(self,
                  sock=None,

@@ -1,6 +1,6 @@
 import re
 
-class hCommand:
+class hCommand( object ):
     """! @brief Command  """
     def __init__(self,
                  command_name,
