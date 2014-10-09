@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS taskdispatcherdb;
+CREATE DATABASE IF NOT EXISTS taskmanagerdb;
 
-GRANT USAGE ON *.* TO tdadmin@localhost identified BY 'tAskd1sPatcher';
+GRANT USAGE ON *.* TO tmadmin@'%' identified BY 'tAskd1sPatcher';
 
-GRANT ALL PRIVILEGES ON taskdispatcherdb.* TO tdadmin@localhost;
+GRANT ALL PRIVILEGES ON taskmanagerdb.* TO tmadmin@'%';
