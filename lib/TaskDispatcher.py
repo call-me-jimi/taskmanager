@@ -69,6 +69,44 @@ certfile = '%s/certs/taskdispatcher.crt' % etcpath
 ca_certs = '%s/certs/authorizedKeys.crt' % etcpath
 
 
+# raw implementation for configuring output of logger
+class Log( object ):
+    def __init__( self, logger ):
+        self.logger = logger
+
+        self.logCategories = {}
+        
+        # load config file
+        self.load()
+
+    def load( self ):
+        """! load config file about indication wether message of a particular category is passed to logger
+        """
+        
+        configFileName = '{etcpath}/logger.cfg'.format(etcpath=etcpath)
+        parser = ConfigParser.SafeConfigParser()
+
+        if os.path.exists( configFileName ):
+            # read config file
+            parser.read( configFileName )
+
+            # remove all entries
+            self.logCategories = {}
+
+            # iterate over all categories
+            for category in parser.items( 'CATEGORIES' ):
+                try:
+                    self.logCategories[ category[0] ] = True if category[1]=="True" else False
+                except:
+                    pass
+        
+
+    def write( self, msg, logCategory="default" ):
+        if self.logCategories.get( logCategory, False ):
+            self.logger.info( msg )
+
+loggerWrapper = Log( logger )
+
 # TaskDispatcher extends the TCPServer
 class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     # By setting this we allow the server to re-bind to the address by
@@ -166,7 +204,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     def serve_forever(self):
         """!@brief overwrites serve_forever of SocketServer.TCPServer"""
 
-        ## print periodically ping td in an own thread
+        ## periodically ping td in an own thread
         l0 = threading.Thread( target=self.loopCheckTD )
         l0.setDaemon( True )
         l0.setName( "Thread: loopCheckTD" )
@@ -270,7 +308,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     def fillDatabase( self ):
         """! @brief fill database and save ids"""
 
-        logger.info( "Fill database (if necessary)" )
+        loggerWrapper.write( "Fill database (if necessary)" )
 
         dbconnection = hDBConnection()
         
@@ -280,13 +318,13 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             try:
                 dbconnection.query( db.JobStatus ).filter( db.JobStatus.name==jobStatus ).one()
             except:
-                logger.info( "  Add entry '{j}' to JobStatus table.".format(t=str(datetime.now()), j=jobStatus ) )
+                loggerWrapper.write( "  Add entry '{j}' to JobStatus table.".format(t=str(datetime.now()), j=jobStatus ) )
                 
                 jobStatusInstance = db.JobStatus( name=jobStatus )
                 
                 dbconnection.introduce( jobStatusInstance )
                 dbconnection.commit()
-        logger.info( "... done" )
+        loggerWrapper.write( "... done" )
 
                 
     def initDatabaseIDs( self ):
@@ -341,7 +379,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                     try:
                         dbconnection.query( db.Host ).filter( db.Host.full_name==hostSettings['full_name'] ).one()
                     except NoResultFound:
-                        logger.info( "Add Host {name} to cluster {clusterName}".format(t=str(datetime.now()), name=hostSettings['short_name'], clusterName=clusterName ) )
+                        loggerWrapper.write( "Add Host {name} to cluster {clusterName}".format(t=str(datetime.now()), name=hostSettings['short_name'], clusterName=clusterName ) )
 
                         # create entry in database
                         host = db.Host( **hostSettings )
@@ -403,7 +441,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                             try:
                                 dbconnection.query( db.Host ).filter( db.Host.full_name==hostSettings['full_name'] ).one()
                             except NoResultFound:
-                                logger.info( "Add Host {name} to cluster".format(t=str(datetime.now()), name=hostSettings['short_name'] ) )
+                                loggerWrapper.write( "Add Host {name} to cluster".format(t=str(datetime.now()), name=hostSettings['short_name'] ) )
 
                                 # create entry in database
                                 host = db.Host( **hostSettings )
@@ -443,7 +481,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                 userInstance = dbconnection.query( db.User ).filter( db.User.name==user ).one()
             except NoResultFound:
                 # add user
-                logger.info( "Add User {name}".format(name=user  ) )
+                loggerWrapper.write( "Add User {name}".format(name=user  ) )
 
                 userInstance = db.User( name=user )
 
@@ -461,7 +499,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                         roleInstance = dbconnection.query( db.Role ).filter( db.Role.name==role ).one()
                     except NoResultFound:
                         # add user
-                        logger.info( "Add Role {name}".format(name=role) )
+                        loggerWrapper.write( "Add Role {name}".format(name=role) )
 
                         roleInstance = db.Role( name=role )
 
@@ -491,7 +529,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             # get all hosts given in database
             hosts = map(itemgetter(0), dbconnection.query( db.Host.full_name ).all())
         
-        logger.info("Checking reachabilty of {n} host{s} ...".format( n=len(hosts), s="s" * int( len(hosts)>1 ) ) )
+        loggerWrapper.write("Checking reachabilty of {n} host{s} ...".format( n=len(hosts), s="s" * int( len(hosts)>1 ) ) )
 
         pingList = []
         for host in hosts:
@@ -504,7 +542,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
              p.join()
              if p.status[1]>0:	# p.status: (transmitted,received)
                  # successful ping
-                 logger.info( "     {h} ... is reachable".format( h=p.host ) )
+                 loggerWrapper.write( "     {h} ... is reachable".format( h=p.host ) )
 
                  # set host in database as reachable
                  hostSummaryInstance = dbconnection.query( db.HostSummary ).join( db.Host ).filter( db.Host.full_name==p.host ).one()
@@ -513,7 +551,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                  reachability[ p.host ] = True
              else:
                  # unreachable
-                 logger.info( "     {h} ... is not reachable".format( h=p.host ) )
+                 loggerWrapper.write( "     {h} ... is not reachable".format( h=p.host ) )
 
                  # set host in database as not reachable
                  hostSummaryInstance = dbconnection.query( db.HostSummary ).join( db.Host ).filter( db.Host.full_name==p.host ).one()
@@ -584,7 +622,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
         hostsDict = { h.full_name: h for h in hosts }
         
-        logger.info("Checking load of {n} host{s} ...".format( n=len(hosts), s="s" * int( len(hostsDict)>1 ) ) )
+        loggerWrapper.write("Checking load of {n} host{s} ...".format( n=len(hosts), s="s" * int( len(hostsDict)>1 ) ), logCategory='load' )
 
         hostLoadList = []
         # iterate over keys
@@ -595,7 +633,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
         for p in hostLoadList:
              p.join()
-             logger.info( "     {h} has load {l}".format( h=p.host, l=p.load[0] ) )
+             loggerWrapper.write( "     {h} has load {l}".format( h=p.host, l=p.load[0] ), logCategory='load' )
 
              # update load in database
              host = hostsDict[ p.host ]
@@ -749,7 +787,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         
         dbconnection = hDBConnection()
         
-        logger.info( "    find vacant host ..." )
+        loggerWrapper.write( "    find vacant host ..." )
         
         if excludedHosts:
             hosts = dbconnection.query( db.Host ). \
@@ -769,7 +807,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                            db.Host.max_number_occupied_slots >= db.HostSummary.number_occupied_slots+slots ) ).all()
 
         if not hosts:
-            logger.info( "    ... no vacant host found." )
+            loggerWrapper.write( "    ... no vacant host found." )
             
             return None
         else:
@@ -783,18 +821,18 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                 hostLoad = sorted( host.host_load, key=attrgetter( 'datetime' ) )[-1]
             except:
                 # no load is given
-                logger.info( "    ... host {h} has no load in db. skip.".format(h=host.full_name) )
+                loggerWrapper.write( "    ... host {h} has no load in db. skip.".format(h=host.full_name) )
                 
                 # get another vacant host
                 excludedHosts.add( host.full_name )
                 return self.getVacantHost( slots, excludedHosts=excludedHosts )
             
             if hostLoad.loadavg_1min <= host.max_number_occupied_slots:
-                logger.info( "  ... {h} is vacant. load is {l}. ok.".format(h=host.full_name,l=hostLoad.loadavg_1min) )
+                loggerWrapper.write( "  ... {h} is vacant. load is {l}. ok.".format(h=host.full_name,l=hostLoad.loadavg_1min) )
                 return (host.id,host.full_name)
             else:
                 # load is too high
-                logger.info( "    ... {h} is vacant. load is {l}. too high. skip".format(h=host.full_name,l=hostLoad.loadavg_1min) )
+                loggerWrapper.write( "    ... {h} is vacant. load is {l}. too high. skip".format(h=host.full_name,l=hostLoad.loadavg_1min) )
 
                 # get another vacant host
                 excludedHosts.add( host.full_name )
@@ -810,7 +848,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             #timeLogger = TimeLogger( prefix="updateJobStatus" )
 
             # aquire lock
-            #logger.info( "  acquire lock ...")
+            #loggerWrapper.write( "  acquire lock ...")
             #self.Lock.acquire()
 
             # connect to database if not given
@@ -828,7 +866,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             #timeLogger.log( "... found {n}".format(n=len(finishedJobs) ) )
 
             if finishedJobs:
-                logger.info( "{n} finished job{s}.".format(n=len(finishedJobs), s='s' if len(finishedJobs)>1 else '' ) )
+                loggerWrapper.write( "{n} finished job{s}.".format(n=len(finishedJobs), s='s' if len(finishedJobs)>1 else '' ) )
 
             taskDispatcherDetails.last_job_status_update = datetime.now()
 
@@ -836,7 +874,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             #for jobHistory in jobHistories:
             #    if jobHistory.job_status_id == self.databaseIDs['finished']:
             #        jobID = jobHistory.job_id
-            #        logger.info( "   Job [{j}] has finished. Free occupied slots on host.".format(j=jobID ) )
+            #        loggerWrapper.write( "   Job [{j}] has finished. Free occupied slots on host.".format(j=jobID ) )
             #
             #        # get Job instance
             #        job = dbconnection.query( db.Job ).get( jobID )
@@ -847,7 +885,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             #        jobHistory.checked = True
             for finishedJob in finishedJobs:
                 job = finishedJob.job
-                logger.info( "   Job [{j}] has finished. Free occupied slots on host.".format(j=job.id ) )
+                loggerWrapper.write( "   Job [{j}] has finished. Free occupied slots on host.".format(j=job.id ) )
 
                 occupiedSlots[ job.job_details.host_id ] += job.slots
 
@@ -862,7 +900,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             dbconnection.commit()
 
             # releas lock
-            #logger.info( "  ... release lock")
+            #loggerWrapper.write( "  ... release lock")
             #self.Lock.release()
             
             self.checkingFinishedJobs = False
@@ -910,7 +948,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
             statusString = "{info}\n{href}\n{status}\n{href}\n".format(href=href, info=info, status=status)
             if not returnString:
-                logger.info( statusString )
+                loggerWrapper.write( statusString, logCategory="status" )
                 self.printingStatus=False
             else:
                 return statusString
@@ -949,7 +987,7 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
                                      
         
         if receivedStr!="check":
-            logger.info( "NEW REQUEST: {r1}{dots}{r2}".format(t=str(datetime.now()),
+            loggerWrapper.write( "NEW REQUEST: {r1}{dots}{r2}".format(t=str(datetime.now()),
                                                               r1=receivedStr[:40] if len(receivedStr)>80 else receivedStr,
                                                               dots="..." if len(receivedStr)>80 else "",
                                                               r2=receivedStr[-40:] if len(receivedStr)>80 else "" ) )
@@ -973,7 +1011,7 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
         t2 = datetime.now()
 
         if receivedStr!="check":
-            logger.info( "REQUEST PROCESSED IN {dt}s.".format(dt=str(t2-t1) ) )
+            loggerWrapper.write( "REQUEST PROCESSED IN {dt}s.".format(dt=str(t2-t1) ) )
 
         
     def finish(self):
@@ -1005,18 +1043,18 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
                 else:
                     freeSlots = 0
 
-                logger.info( "Free slots: {n}".format(n=freeSlots) )
+                loggerWrapper.write( "Free slots: {n}".format(n=freeSlots) )
 
                 if freeSlots>0:
 
-                    logger.info( "Get jobs to be executed ...".format(n=freeSlots) )
+                    loggerWrapper.write( "Get jobs to be executed ...".format(n=freeSlots) )
 
                     # get next jobs ready to be sent to associate tms
                     #jobIDs = self.TD.getNextJobs( numJobs=freeSlots, excludedJobIDs=self.TD.lockedJobs )
                     jobIDs = self.TD.getNextJobs( numJobs=freeSlots )
 
                     if jobIDs:
-                        logger.info( "... got {n} jobs to be executed.".format(n=len(jobIDs) ) )
+                        loggerWrapper.write( "... got {n} jobs to be executed.".format(n=len(jobIDs) ) )
 
                         # iterate over all jobs
                         # reduced freeSlots accordingly after job has been submitted
@@ -1028,7 +1066,7 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
                             job = dbconnection.query( db.Job ).get( jobID )
                             user = job.user
 
-                            logger.info( "  next job {idx}/{N} is {i} of user {u}".format( idx=idx+1, N=len(jobIDs), i=jobID, u=user.name ) )
+                            loggerWrapper.write( "  next job {idx}/{N} is {i} of user {u}".format( idx=idx+1, N=len(jobIDs), i=jobID, u=user.name ) )
 
                             # get excluded hosts
                             excludedHosts = json.loads( job.excluded_hosts )
@@ -1037,7 +1075,7 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
                             vacantHost = self.TD.getVacantHost( job.slots, excludedHosts=set( excludedHosts ) )
 
                             if vacantHost:
-                                logger.info( "    run job {j} of user {u} on {h}".format(j=jobID, u=user.name, h=vacantHost[1] ) )
+                                loggerWrapper.write( "    run job {j} of user {u} on {h}".format(j=jobID, u=user.name, h=vacantHost[1] ) )
 
                                 try:
                                     # send jobID to tms
@@ -1083,22 +1121,22 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
                                         freeSlots -= job.slots
 
                                 except socket.error,msg:
-                                    logger.info( "... failed [{h}:{p}]: {m}".format(h=user.tms_host, p=user.tms_port, m=msg) )
+                                    loggerWrapper.write( "... failed [{h}:{p}]: {m}".format(h=user.tms_host, p=user.tms_port, m=msg) )
 
-                            logger.info( "  free slots: {s}".format(s=freeSlots))
+                            loggerWrapper.write( "  free slots: {s}".format(s=freeSlots))
 
                             # remove job from locked ids
                             #self.TD.lockedJobs.remove( jobID )
 
                             if freeSlots < 1:
                                 break
-                        logger.info( "done." )        
+                        loggerWrapper.write( "done." )        
                     else:
-                        logger.info( '... no jobs.' )
+                        loggerWrapper.write( '... no jobs.' )
 
 
                 t2 = datetime.now()
-                logger.info( "... done in {dt}s.".format(dt=str(t2-t1) ) )
+                loggerWrapper.write( "... done in {dt}s.".format(dt=str(t2-t1) ) )
             except:
                 # error handling
                 traceback.print_exc(file=sys.stdout)
@@ -1137,6 +1175,9 @@ class TaskDispatcherRequestProcessor(object):
         self.commands["LSTHREADS"] = hCommand(command_name = "lsthreads",
                                             regExp = "^lsthreads$",
                                             help = "return list of active threads")
+        self.commands["LOADLOGGERCONFIG"] = hCommand( command_name = "loadloggerconfig",
+                                                      regExp = "^loadloggerconfig$",
+                                                      help = "load logger config")
         self.commands["PRINTSTATUS"] = hCommand( command_name = "printstatus",
                                           regExp = "^printstatus$",
                                           help = "print status to stdout")
@@ -1290,6 +1331,10 @@ class TaskDispatcherRequestProcessor(object):
             help.extend( renderHelp( sorted(self.commands.keys()), self.commands ) )
             
             request.send( '\n'.join( help ) )
+            
+        elif self.commands["LOADLOGGERCONFIG"].re.match(requestStr):
+            loggerWrapper.load()
+            request.send( 'done.' )
             
         #  get list of active threads
         elif self.commands["LSTHREADS"].re.match(requestStr):
@@ -1447,7 +1492,7 @@ class TaskDispatcherRequestProcessor(object):
         #        dbconnection.introduce( newUser )
         #        dbconnection.commit()
         #
-        #        logger.info( 'Added new user {u}'.format(u=user) )
+        #        loggerWrapper.write( 'Added new user {u}'.format(u=user) )
 
         elif self.commands['DEACTIVATEHOST'].re.match( requestStr ):
             c = self.commands['DEACTIVATEHOST']
@@ -1499,7 +1544,7 @@ class TaskDispatcherRequestProcessor(object):
                     
                     user_id = userInstance.id
                 else:
-                    logger.info( 'Unknown user {u}'.format(u=user) )
+                    loggerWrapper.write( 'Unknown user {u}'.format(u=user) )
                     request.send( 'Unknown user' )
                     
             except:
@@ -1543,7 +1588,7 @@ class TaskDispatcherRequestProcessor(object):
             
             dbconnection.commit()
 
-            logger.info( 'Added new job with id {i}'.format( i=newJob.id ) )
+            loggerWrapper.write( 'Added new job with id {i}'.format( i=newJob.id ) )
             
             request.send( str(newJob.id) )
             
@@ -1579,7 +1624,7 @@ class TaskDispatcherRequestProcessor(object):
 
                     user_id = userInstance.id
                 else:
-                    logger.info( 'Unknown user {u}'.format(u=user) )
+                    loggerWrapper.write( 'Unknown user {u}'.format(u=user) )
                     request.send( 'Unknown user' )
 
             except:
@@ -1587,7 +1632,7 @@ class TaskDispatcherRequestProcessor(object):
 
             jobIDs = []
 
-            logger.info( "Add {n} jobs ...".format(n=len(jsonObj['jobs'])) )
+            loggerWrapper.write( "Add {n} jobs ...".format(n=len(jsonObj['jobs'])) )
             
             # iterate over all jobs
             for idx,job in enumerate(jsonObj['jobs']):
@@ -1640,7 +1685,7 @@ class TaskDispatcherRequestProcessor(object):
 
                 dbconnection.commit()
 
-                logger.info( '  {idx}/{n}: added job with id {i}'.format( idx=idx, n=len(jsonObj['jobs']), i=newJob.id ) )
+                loggerWrapper.write( '  {idx}/{n}: added job with id {i}'.format( idx=idx, n=len(jsonObj['jobs']), i=newJob.id ) )
 
                 jobIDs.append( str(newJob.id) )
                                
@@ -1883,7 +1928,8 @@ class TaskDispatcherRequestProcessor(object):
                   update( {db.JobDetails.job_status_id: TD.databaseIDs['waiting'] } )
 
                 # add to waiting jobs
-                wJob = db.WaitingJob( job=job )
+                wJob = db.WaitingJob( job=job,
+                                      user_id=job.user_id )
                 
                 # set history
                 jobHistory = db.JobHistory( job=job,
@@ -1963,7 +2009,7 @@ class TaskDispatcherRequestProcessor(object):
 
             dbconnection.commit()
 
-            request.send( "set {n} jobs as finished".format(n=len(rJobs)) )
+            request.send( "set {n} jobs as finished".format(n=len(pJobs)) )
             
         elif self.commands["SETALLRJOBSASFINISHED"].re.match( requestStr ):
             rJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['running'] ).all()
@@ -2014,11 +2060,11 @@ class TaskDispatcherRequestProcessor(object):
             
             slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
 
-            logger.info( "remove {j} of user {u}".format(j=len(jobs),u=user ) )
+            loggerWrapper.write( "remove {j} of user {u}".format(j=len(jobs),u=user ) )
             
             occupiedSlots = defaultdict( int )
             for job in jobs:
-                logger.info( "remove job {i}".format(i=job.id) )
+                loggerWrapper.write( "remove job {i}".format(i=job.id) )
                 if job.job_details.job_status_id in (TD.databaseIDs['pending'],TD.databaseIDs['running']):
                     occupiedSlots[ job.job_details.host_id ] += job.slots
 
@@ -2040,7 +2086,7 @@ class TaskDispatcherRequestProcessor(object):
             
             user = c.re.match( requestStr ).groups()[0]
             
-            logger.info( "remove all waiting jobs of user {u}".format(u=user ) )
+            loggerWrapper.write( "remove all waiting jobs of user {u}".format(u=user ) )
 
             # remove all waiting jobs
             dbconnection.query( db.WaitingJob ).\
@@ -2056,6 +2102,7 @@ class TaskDispatcherRequestProcessor(object):
             
             dbconnection.commit()
             
+            request.send( "done" )
         else:
             request.send("What do you want?")
 
