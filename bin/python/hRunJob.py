@@ -93,6 +93,10 @@ if __name__ == '__main__':
                         dest="logfile",
                         default="",
                         help="Write log messages in FILE.")
+    parser.add_argument("-m", "--estimatedMemory",
+                       dest = "estimatedMemory",
+                       default = 0,
+                       help = "Specify estimated memory consumtion of job in MB.")
     parser.add_argument("-o", "--stdout_file",
                         metavar="FILE",
                         dest="stdout",
@@ -106,7 +110,7 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--priority",
                        dest = "priority",
                        default = "0",
-                       help = "Set priority of job. 1. Only two priorities are supported: 0 for no priority and non-zero for highest priority.")
+                       help = "Set priority of job. Higher values indicate higher priority. Max priority is 127.")
     parser.add_argument("-q", "--quiet",
                        action="store_true",
                        dest="quiet",
@@ -122,6 +126,10 @@ if __name__ == '__main__':
                        default = loginShell,
                        choices = ['tcsh','bash'],
                        help = "Define execution shell (tcsh or bash). Default: {shell}.".format(shell=loginShell))
+    parser.add_argument("-t", "--estimatedTime",
+                       dest = "estimatedTime",
+                       default = 0,
+                       help = "Specify estimated run time of job")
     parser.add_argument("-v", "--verbose",
                        action = "store_true",
                        dest = "verboseMode",
@@ -188,7 +196,18 @@ if __name__ == '__main__':
                 jobs = []
                 
                 # known fields
-                requiredFields = [ "command", "slots", "group", "infoText", "logfile", "stdout", "stderr", "shell", "priority", "excludedHosts" ]
+                requiredFields = [ "command",
+                                   "slots",
+                                   "group",
+                                   "infoText",
+                                   "logfile",
+                                   "stdout",
+                                   "stderr",
+                                   "shell",
+                                   "priority",
+                                   "estimatedTime",
+                                   "estimatedMemory",
+                                   "excludedHosts" ]
                 # construct regular expressions
                 reRequiredFields = { field: re.compile( "^{field}::(.*)$".format(field=field) ) for field in requiredFields }
 
@@ -256,7 +275,10 @@ if __name__ == '__main__':
                        'logfile': args.logfile,
                        'shell': args.shell,
                        'priority': args.priority,
-                       'excludedHosts': args.excludedHosts }
+                       'estimatedTime': args.estimatedTime,
+                       'estimatedMemory': args.estimatedMemory,
+                       'excludedHosts': args.excludedHosts
+                       }
 
             jsonObj = json.dumps(jsonObj)
 

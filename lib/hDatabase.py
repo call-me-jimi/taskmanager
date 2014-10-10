@@ -1,7 +1,7 @@
 import datetime
 
 from sqlalchemy import Column, ForeignKey
-from sqlalchemy.types import Integer, Float, String, DateTime, Boolean
+from sqlalchemy.types import Integer, SmallInteger, Float, String, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy import create_engine
@@ -61,6 +61,13 @@ class JobStatus( Base ):
     def __repr__( self ):
         return "JobStatus [{id}] {n}".format( id=self.id, n=self.name )
 
+class Priority( Base ):
+    __tablename__ = 'priority'
+
+    id = Column( Integer, primary_key=True )
+    value = Column( SmallInteger )
+    
+
 ## @brief Job
 #
 # backrefs: job_history --> JobHistory
@@ -81,9 +88,13 @@ class Job( Base ):
     #job_details_id = Column( Integer, ForeignKey( 'job_details.id' ) )
     excluded_hosts = Column( String(1024), default='[]' )	# json representation of a list of host's full names
     slots = Column( Integer, default=1 )
+    priority_id = Column( Integer, ForeignKey( 'priority.id' ), nullable=False )	# the higher value indicates higher priority
+    estimated_time = Column( Float )
+    estimated_memory = Column( Float )
     
     user = relationship( 'User' )
     job_details = relationship( 'JobDetails', uselist=False, backref='job', cascade="all, delete-orphan" )
+    priority = relationship( 'Priority' )
     
     def __repr__( self ):
         return "Job [{id}] command: {c}".format( id=self.id, c=self.command )
@@ -127,9 +138,12 @@ class WaitingJob( Base ):
 
     job_id = Column( Integer, ForeignKey( 'job.id' ), nullable=False )
     user_id = Column( Integer, ForeignKey( 'user.id' ), nullable=False )
+    priorityValue = Column( Float, nullable=False )
+    datetime = Column( DateTime, default = datetime.datetime.now )
     
     job = relationship( 'Job' )
     user = relationship( 'User' )
+    
     
 class FinishedJob( Base ):
     __tablename__ = 'finished_job'

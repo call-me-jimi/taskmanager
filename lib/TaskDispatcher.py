@@ -27,7 +27,9 @@ from sqlalchemy import and_, not_, func
 from operator import itemgetter, attrgetter
 from sqlalchemy.orm.exc import NoResultFound
 
-from TimeLogger import TimeLogger
+from hTimeLogger import hTimeLogger
+from hJobScheduler import hJobSchedulerPrioritized as JobScheduler
+from hLog import hLog
 
 # logging
 import logging
@@ -61,51 +63,14 @@ from hCommand import hCommand
 from hTMUtils import renderHelp, hPingHost, hHostLoad
 from hTaskDispatcherInfo import hTaskDispatcherInfo
 from hDBConnection import hDBConnection
-
 import hDatabase as db
 
 keyfile = '%s/certs/taskdispatcher.key' % etcpath
 certfile = '%s/certs/taskdispatcher.crt' % etcpath
 ca_certs = '%s/certs/authorizedKeys.crt' % etcpath
 
-
-# raw implementation for configuring output of logger
-class Log( object ):
-    def __init__( self, logger ):
-        self.logger = logger
-
-        self.logCategories = {}
-        
-        # load config file
-        self.load()
-
-    def load( self ):
-        """! load config file about indication wether message of a particular category is passed to logger
-        """
-        
-        configFileName = '{etcpath}/logger.cfg'.format(etcpath=etcpath)
-        parser = ConfigParser.SafeConfigParser()
-
-        if os.path.exists( configFileName ):
-            # read config file
-            parser.read( configFileName )
-
-            # remove all entries
-            self.logCategories = {}
-
-            # iterate over all categories
-            for category in parser.items( 'CATEGORIES' ):
-                try:
-                    self.logCategories[ category[0] ] = True if category[1]=="True" else False
-                except:
-                    pass
-        
-
-    def write( self, msg, logCategory="default" ):
-        if self.logCategories.get( logCategory, False ):
-            self.logger.info( msg )
-
-loggerWrapper = Log( logger )
+# wrap logger
+loggerWrapper = hLog( logger )
 
 # TaskDispatcher extends the TCPServer
 class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
@@ -146,7 +111,6 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             dbconnection.introduce( taskDispatcherDetails )
             dbconnection.commit()
         
-
         self.fillDatabase()
 
         # read cluster from config file and update database
@@ -158,6 +122,8 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         # save database ids of some entries in self.databaseIDs
         self.databaseIDs = {}
         self.initDatabaseIDs()
+
+        self.jobScheduler = JobScheduler()
 
         # set interval for loop of calling loop functions
         self.loopCheckTDInterval = 1
@@ -172,7 +138,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         self.sendingJobs = False
         self.checkingFinishedJobs = False
         self.printingStatus = False
-        
+
         print 
         print "[{t}] TaskDispatcher ({path}) has been started on {h}:{p}\n".format( path=tmpath,
                                                                                     t=str(datetime.now()),
@@ -317,7 +283,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         for jobStatus in js:
             try:
                 dbconnection.query( db.JobStatus ).filter( db.JobStatus.name==jobStatus ).one()
-            except:
+            except NoResultFound:
                 loggerWrapper.write( "  Add entry '{j}' to JobStatus table.".format(t=str(datetime.now()), j=jobStatus ) )
                 
                 jobStatusInstance = db.JobStatus( name=jobStatus )
@@ -659,119 +625,120 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         dbconnection.commit()
 
         
-    def getNextJob( self, excludedJobIDs=set([]) ):
-        """! @brief get next job which will be send to cluster 
+    ##def getNextJob( self, excludedJobIDs=set([]) ):
+    ##    """! @brief get next job which will be send to cluster 
+    ##
+    ##    @param excludedJobIDs (set) set of jobIDs which should not be considered
+    ##
+    ##    @todo think about something more sophisticated than just taking the next in queue
+    ##    """
+    ##
+    ##    dbconnection = hDBConnection()
+    ##
+    ##    # get next waiting job in queue
+    ##    if excludedJobIDs:
+    ##        job = dbconnection.query( db.WaitingJob ).\
+    ##              join( db.Job ).\
+    ##              join( db.User ).\
+    ##              filter( db.User.enabled==True ).\
+    ##              join( db.JobDetails ).\
+    ##              filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
+    ##              order_by( db.Job.id ).first()
+    ##        ##job = dbconnection.query( db.Job ).\
+    ##        ##      join( db.JobDetails ).\
+    ##        ##      filter( and_( db.JobDetails.job_status_id==self.databaseIDs['waiting'], not_(db.Job.id.in_(excludedJobIDs) ) ) ).\
+    ##        ##      order_by( db.Job.id ).first()
+    ##    else:
+    ##        job = dbconnection.query( db.WaitingJob ).\
+    ##              join( db.Job ).\
+    ##              join( db.User ).\
+    ##              filter( db.User.enabled==True ).\
+    ##              join( db.JobDetails ).\
+    ##              order_by( db.Job.id ).first()
+    ##        ##job = dbconnection.query( db.Job ).\
+    ##        ##      join( db.JobDetails ).\
+    ##        ##      filter( db.JobDetails.job_status_id==self.databaseIDs['waiting'] ).\
+    ##        ##      order_by( db.Job.id ).first()
+    ##        
+    ##    if job:
+    ##        # return job id
+    ##        return job.job_id
+    ##    else:
+    ##        # no job was found
+    ##        None
 
-        @param excludedJobIDs (set) set of jobIDs which should not be considered
 
-        @todo think about something more sophisticated than just taking the next in queue
-        """
-
-        dbconnection = hDBConnection()
-
-        # get next waiting job in queue
-        if excludedJobIDs:
-            job = dbconnection.query( db.WaitingJob ).\
-                  join( db.Job ).\
-                  join( db.User ).\
-                  filter( db.User.enabled==True ).\
-                  join( db.JobDetails ).\
-                  filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
-                  order_by( db.Job.id ).first()
-            ##job = dbconnection.query( db.Job ).\
-            ##      join( db.JobDetails ).\
-            ##      filter( and_( db.JobDetails.job_status_id==self.databaseIDs['waiting'], not_(db.Job.id.in_(excludedJobIDs) ) ) ).\
-            ##      order_by( db.Job.id ).first()
-        else:
-            job = dbconnection.query( db.WaitingJob ).\
-                  join( db.Job ).\
-                  join( db.User ).\
-                  filter( db.User.enabled==True ).\
-                  join( db.JobDetails ).\
-                  order_by( db.Job.id ).first()
-            ##job = dbconnection.query( db.Job ).\
-            ##      join( db.JobDetails ).\
-            ##      filter( db.JobDetails.job_status_id==self.databaseIDs['waiting'] ).\
-            ##      order_by( db.Job.id ).first()
-            
-        if job:
-            # return job id
-            return job.job_id
-        else:
-            # no job was found
-            None
-
-    def getNextJobs( self, numJobs=1, excludedJobIDs=set([]), returnInstances=False ):
-        """! @brief get next jobs which will be send to cluster 
-
-        @param numJobs (int) maximal number of jobs which will be returned
-        @param excludedJobIDs (set) set of jobIDs which should not be considered
-        @param returnInstances (bool) if True return db.Job instances otherwise return job ids
-
-        @return (list) job ids or db.Job
-        
-        @todo think about something more sophisticated than just taking the next in queue
-        """
-        #timeLogger = TimeLogger( prefix="getNextJobs" )
-        
-        dbconnection = hDBConnection()
-
-        #timeLogger.log( "number excluded jobs: {n}".format(n=len(excludedJobIDs)) )
-        # get next waiting job in queue
-        #timeLogger.log( "get jobs ..." )
-        if excludedJobIDs:
-            jobs = dbconnection.query( db.WaitingJob ).\
-                   join( db.User ).\
-                   join( db.Job ).\
-                   filter( db.User.enabled==True ).\
-                   filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
-                   limit( numJobs ).all()
-            
-            ##jobs = dbconnection.query( db.WaitingJob ).\
-            ##       join( db.Job ).\
-            ##       join( db.User ).\
-            ##       filter( db.User.enabled==True ).\
-            ##       filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
-            ##       limit( numJobs ).all()
-            
-            ##jobs = dbconnection.query( db.Job ).\
-            ##       join( db.User ).\
-            ##       filter( db.User.enabled==True ).\
-            ##       join( db.JobDetails ).\
-            ##       filter( and_( db.JobDetails.job_status_id==self.databaseIDs['waiting'], not_(db.Job.id.in_(excludedJobIDs) ) ) ).\
-            ##       order_by( db.Job.id ).\
-            ##       limit( numJobs ).all()
-        else:
-            jobs = dbconnection.query( db.WaitingJob ).\
-                   join( db.User ).\
-                   filter( db.User.enabled==True ).\
-                   limit( numJobs ).all()
-            
-            ##jobs = dbconnection.query( db.WaitingJob ).\
-            ##       join( db.Job ).\
-            ##       join( db.User ).\
-            ##       filter( db.User.enabled==True ).\
-            ##       limit( numJobs ).all()
-            
-            ##jobs = dbconnection.query( db.Job ).\
-            ##       join( db.User ).\
-            ##       filter( db.User.enabled==True ).\
-            ##       join( db.JobDetails ).\
-            ##       filter( db.JobDetails.job_status_id==self.databaseIDs['waiting'] ).\
-            ##       order_by( db.Job.id ).\
-            ##       limit( numJobs ).all()
-            
-        #timeLogger.log( "number of found jobs: {n}".format(n=len(jobs)) )
-        
-        if jobs:
-            # return job id
-            if returnInstances:
-                return jobs
-            else:
-                return [ j.job_id for j in jobs ]
-        else:
-            # no job was found
-            return []
+    ##def getNextJobs( self, numJobs=1, excludedJobIDs=set([]), returnInstances=False ):
+    ##    """! @brief get next jobs which will be send to cluster 
+    ##
+    ##    @param numJobs (int) maximal number of jobs which will be returned
+    ##    @param excludedJobIDs (set) set of jobIDs which should not be considered
+    ##    @param returnInstances (bool) if True return db.Job instances otherwise return job ids
+    ##
+    ##    @return (list) job ids or db.Job
+    ##    
+    ##    @todo think about something more sophisticated than just taking the next in queue
+    ##    """
+    ##    #timeLogger = TimeLogger( prefix="getNextJobs" )
+    ##    
+    ##    dbconnection = hDBConnection()
+    ##
+    ##    #timeLogger.log( "number excluded jobs: {n}".format(n=len(excludedJobIDs)) )
+    ##    # get next waiting job in queue
+    ##    #timeLogger.log( "get jobs ..." )
+    ##    if excludedJobIDs:
+    ##        jobs = dbconnection.query( db.WaitingJob ).\
+    ##               join( db.User ).\
+    ##               join( db.Job ).\
+    ##               filter( db.User.enabled==True ).\
+    ##               filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
+    ##               limit( numJobs ).all()
+    ##        
+    ##        ##jobs = dbconnection.query( db.WaitingJob ).\
+    ##        ##       join( db.Job ).\
+    ##        ##       join( db.User ).\
+    ##        ##       filter( db.User.enabled==True ).\
+    ##        ##       filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
+    ##        ##       limit( numJobs ).all()
+    ##        
+    ##        ##jobs = dbconnection.query( db.Job ).\
+    ##        ##       join( db.User ).\
+    ##        ##       filter( db.User.enabled==True ).\
+    ##        ##       join( db.JobDetails ).\
+    ##        ##       filter( and_( db.JobDetails.job_status_id==self.databaseIDs['waiting'], not_(db.Job.id.in_(excludedJobIDs) ) ) ).\
+    ##        ##       order_by( db.Job.id ).\
+    ##        ##       limit( numJobs ).all()
+    ##    else:
+    ##        jobs = dbconnection.query( db.WaitingJob ).\
+    ##               join( db.User ).\
+    ##               filter( db.User.enabled==True ).\
+    ##               limit( numJobs ).all()
+    ##        
+    ##        ##jobs = dbconnection.query( db.WaitingJob ).\
+    ##        ##       join( db.Job ).\
+    ##        ##       join( db.User ).\
+    ##        ##       filter( db.User.enabled==True ).\
+    ##        ##       limit( numJobs ).all()
+    ##        
+    ##        ##jobs = dbconnection.query( db.Job ).\
+    ##        ##       join( db.User ).\
+    ##        ##       filter( db.User.enabled==True ).\
+    ##        ##       join( db.JobDetails ).\
+    ##        ##       filter( db.JobDetails.job_status_id==self.databaseIDs['waiting'] ).\
+    ##        ##       order_by( db.Job.id ).\
+    ##        ##       limit( numJobs ).all()
+    ##        
+    ##    #timeLogger.log( "number of found jobs: {n}".format(n=len(jobs)) )
+    ##    
+    ##    if jobs:
+    ##        # return job id
+    ##        if returnInstances:
+    ##            return jobs
+    ##        else:
+    ##            return [ j.job_id for j in jobs ]
+    ##    else:
+    ##        # no job was found
+    ##        return []
 
         
     def getVacantHost( self, slots, excludedHosts=set([]) ):
@@ -1029,7 +996,7 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
 
                 dbconnection = hDBConnection()
 
-                print "----------------------------"
+                loggerWrapper.write( "----------------------------", logCategory="sendingJobs" )
 
                 t1 = datetime.now()
 
@@ -1043,18 +1010,19 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
                 else:
                     freeSlots = 0
 
-                loggerWrapper.write( "Free slots: {n}".format(n=freeSlots) )
+                loggerWrapper.write( "Free slots: {n}".format(n=freeSlots), logCategory="sendingJobs" )
 
                 if freeSlots>0:
 
-                    loggerWrapper.write( "Get jobs to be executed ...".format(n=freeSlots) )
+                    loggerWrapper.write( "Get jobs to be executed ...".format(n=freeSlots), logCategory="sendingJobs" )
 
                     # get next jobs ready to be sent to associate tms
                     #jobIDs = self.TD.getNextJobs( numJobs=freeSlots, excludedJobIDs=self.TD.lockedJobs )
-                    jobIDs = self.TD.getNextJobs( numJobs=freeSlots )
+                    #jobIDs = self.TD.getNextJobs( numJobs=freeSlots )
+                    jobIDs = self.TD.jobScheduler.next( numJobs=freeSlots )
 
                     if jobIDs:
-                        loggerWrapper.write( "... got {n} jobs to be executed.".format(n=len(jobIDs) ) )
+                        loggerWrapper.write( "... got {n} jobs to be executed.".format(n=len(jobIDs) ), logCategory="sendingJobs" )
 
                         # iterate over all jobs
                         # reduced freeSlots accordingly after job has been submitted
@@ -1075,7 +1043,7 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
                             vacantHost = self.TD.getVacantHost( job.slots, excludedHosts=set( excludedHosts ) )
 
                             if vacantHost:
-                                loggerWrapper.write( "    run job {j} of user {u} on {h}".format(j=jobID, u=user.name, h=vacantHost[1] ) )
+                                loggerWrapper.write( "    run job {j} of user {u} on {h}".format(j=jobID, u=user.name, h=vacantHost[1] ), logCategory="sendingJobs" )
 
                                 try:
                                     # send jobID to tms
@@ -1121,22 +1089,22 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
                                         freeSlots -= job.slots
 
                                 except socket.error,msg:
-                                    loggerWrapper.write( "... failed [{h}:{p}]: {m}".format(h=user.tms_host, p=user.tms_port, m=msg) )
+                                    loggerWrapper.write( "... failed [{h}:{p}]: {m}".format(h=user.tms_host, p=user.tms_port, m=msg), logCategory="sendingJobs" )
 
-                            loggerWrapper.write( "  free slots: {s}".format(s=freeSlots))
+                            loggerWrapper.write( "  free slots: {s}".format(s=freeSlots), logCategory="sendingJobs")
 
                             # remove job from locked ids
                             #self.TD.lockedJobs.remove( jobID )
 
                             if freeSlots < 1:
                                 break
-                        loggerWrapper.write( "done." )        
+                        loggerWrapper.write( "done.", logCategory="sendingJobs" )
                     else:
-                        loggerWrapper.write( '... no jobs.' )
+                        loggerWrapper.write( '... no jobs.', logCategory="sendingJobs" )
 
 
                 t2 = datetime.now()
-                loggerWrapper.write( "... done in {dt}s.".format(dt=str(t2-t1) ) )
+                loggerWrapper.write( "... done in {dt}s.".format(dt=str(t2-t1) ), logCategory="sendingJobs" )
             except:
                 # error handling
                 traceback.print_exc(file=sys.stdout)
@@ -1510,15 +1478,17 @@ class TaskDispatcherRequestProcessor(object):
             jsonObj = json.loads( jsonObj )
 
             command = jsonObj['command']
-            slots = jsonObj.get('slots', 1)
+            slots = int(jsonObj.get('slots', 1))
             infoText = jsonObj.get('infoText','')
             group = jsonObj.get('group','')
             stdout = jsonObj.get('stdout','')
             stderr = jsonObj.get('stdin','')
             logfile = jsonObj.get('logfile','')
             shell = jsonObj['shell']
-            priority = jsonObj.get('priority',1)
-            excludedHosts = jsonObj.get("excludedHosts","").split(',')
+            priorityValue = int(jsonObj.get('priority',0))
+            estimatedTime = float(jsonObj.get('estimatedTime',0))
+            estimatedMemory = float(jsonObj.get('estimatedMemory',0))
+            excludedHosts = filter(None, jsonObj.get("excludedHosts","").split(',') )
             user = jsonObj['user']
             tmsHost = jsonObj['TMSHost']
             tmsPort = jsonObj['TMSPort']
@@ -1554,31 +1524,47 @@ class TaskDispatcherRequestProcessor(object):
             excludedHostsList = []
             for h in excludedHosts:
                 try:
-                    con.query( db.Host ).filter( db.Host.full_name==h ).one()
+                    dbconnection.query( db.Host ).filter( db.Host.full_name==h ).one()
                     excludedHostsList.append( h )
-                except:
+                except NoResultFound:
                     # do not consider this host
                     continue
-                
+
+            # priority value is supposed to be between  0 and 127
+            priorityValue = 127 if priorityValue > 127 else 0 if priorityValue<0 else priorityValue
+            # get database id of priority
+            try:
+                priority = dbconnection.query( db.Priority ).filter( db.Priority.value==priorityValue ).one()
+            except NoResultFound:
+                priority = db.Priority( value=priorityValue )
+                dbconnection.introduce( priority )
+
             # create database entry for the new job
             newJob = db.Job( user_id=user_id,
                              command=command,
-                             slots=int(slots),
+                             slots=slots,
                              info_text=infoText,
                              group=group,
                              shell=shell,
                              stdout=stdout,
                              stderr=stderr,
                              logfile=logfile,
+                             priority=priority,
+                             estimated_time=estimatedTime,
+                             estimated_memory=estimatedMemory,
                              excluded_hosts=json.dumps( excludedHostsList ) )
 
             # set jobstatus for this job
             jobDetails = db.JobDetails( job=newJob,
                                         job_status_id=TD.databaseIDs['waiting'] )
 
+            # calculate a priority value
+            pValue = priority.value
+            
             # add to waiting job
             waitingJob = db.WaitingJob( job=newJob,
-                                        user_id=user_id )
+                                        user_id=user_id,
+                                        priorityValue=pValue )
 
             # set history
             jobHistory = db.JobHistory( job=newJob,
@@ -1637,7 +1623,7 @@ class TaskDispatcherRequestProcessor(object):
             # iterate over all jobs
             for idx,job in enumerate(jsonObj['jobs']):
                 command = job['command']
-                slots = job['slots']
+                slots = int(job['slots'])
                 infoText = job.get('infoText','')
                 group = job.get('group','')
                 stdout = job.get('stdout','')
@@ -1645,22 +1631,34 @@ class TaskDispatcherRequestProcessor(object):
                 logfile = job.get('logfile','')
                 shell = job['shell']
                 excludedHosts = job.get("excludedHosts","").split(',')
-                priority = job.get('priority',1)
-
+                priorityValue = job.get('priority',0)
+                estimatedTime = int(job.get("estimatedTime",0))
+                estimatedMemory = int(job.get("estimatedmEMORY",0))
+                
                 # check excluded hosts
                 excludedHostsList = []
                 for h in excludedHosts:
                     try:
-                        con.query( db.Host ).filter( db.Host.full_name==h ).one()
+                        dbconnection.query( db.Host ).filter( db.Host.full_name==h ).one()
                         excludedHostsList.append( h )
-                    except:
+                    except NoResultFound:
                         # do not consider this host
                         continue
 
+                # priority value is supposed to be between  0 and 127
+                priorityValue = 127 if priorityValue > 127 else 0 if priorityValue<0 else priorityValue
+                # get database id of priority
+                try:
+                    priority = dbconnection.query( db.Priority ).filter( db.Priority.value==priorityValue ).one()
+                except NoResultFound:
+                    priority = db.Priority( value=priorityValue )
+                    dbconnection.introduce( priority )
+                    
                 # create database entry for the new job
                 newJob = db.Job( user_id=user_id,
                                  command=command,
                                  slots=int(slots),
+                                 priority=priority,
                                  info_text=infoText,
                                  group=group,
                                  shell=shell,
@@ -1675,7 +1673,8 @@ class TaskDispatcherRequestProcessor(object):
 
                 # add as waiting job
                 waitingJob = db.WaitingJob( job=newJob,
-                                            user_id=user_id )
+                                            user_id=user_id,
+                                            priorityValue=priority.value )	# calculate a priority value
 
                 # set history
                 jobHistory = db.JobHistory( job=newJob,
@@ -1892,7 +1891,8 @@ class TaskDispatcherRequestProcessor(object):
 
             number = int( c.re.match(requestStr).groups()[0] )
 
-            jobs = TD.getNextJobs( numJobs=number, returnInstances=True )
+            #jobs = TD.getNextJobs( numJobs=number, returnInstances=True )
+            jobs = TD.jobScheduler.next( numJobs=number, returnInstances=True )
 
             response = ""
             for idx,wJob in enumerate(jobs):
@@ -1929,7 +1929,8 @@ class TaskDispatcherRequestProcessor(object):
 
                 # add to waiting jobs
                 wJob = db.WaitingJob( job=job,
-                                      user_id=job.user_id )
+                                      user_id=job.user_id,
+                                      priorityValue=priority.value )	# calculate a priority value
                 
                 # set history
                 jobHistory = db.JobHistory( job=job,
@@ -1961,7 +1962,9 @@ class TaskDispatcherRequestProcessor(object):
                   update( {db.JobDetails.job_status_id: TD.databaseIDs['waiting'] } )
 
                 # add to waiting jobs
-                wJob = db.WaitingJob( job=job )
+                wJob = db.WaitingJob( job=job,
+                                      user_id=job.user_id,
+                                      priorityValue=priority.value )	# calculate a priority value
                 
                 # set history
                 jobHistory = db.JobHistory( job=job,

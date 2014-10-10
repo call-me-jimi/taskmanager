@@ -17,7 +17,7 @@ logger.addHandler(consoleLog)
 
 
 
-class TimeLogger( object ):
+class hTimeLogger( object ):
     """! brief An Object which handles time logging"""
     globalLoggerLevel = 10
     def __init__(self, prefix="", indentation=0, loggerLevel=10):

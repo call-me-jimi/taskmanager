@@ -1330,7 +1330,9 @@ class TaskManagerServerProcessor(object):
             stdout = jsonInObj.get('stdout','')
             stderr = jsonInObj.get('stderr','')
             logfile = jsonInObj.get('logfile','')
-            priority = jsonInObj.get('priority', 1)
+            priority = jsonInObj.get('priority', 0)
+            estimated_time = jsonInObj.get('estimateTime', 0)
+            estimated_memory = jsonInObj.get('estimateMemory', 0)
             excludedHosts = jsonInObj.get("excludedHosts","")
 
             logger.info('[%s] ... send job to TD' % threadName)
@@ -1348,6 +1350,8 @@ class TaskManagerServerProcessor(object):
                             'logfile': logfile,
                             'user': user,
                             'priority': priority,
+                            'estimatedTime': estimated_time,
+                            'estimatedMemory': estimated_memory,
                             'excludedHosts': excludedHosts}
 
             jsonOutObj = json.dumps(jsonOutObj)
