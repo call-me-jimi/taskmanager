@@ -1,4 +1,4 @@
-taskmanager
+TaskManager
 ===========
 
 TaskManager is an open source infrastructure software for distributing and managing calculation jobs
