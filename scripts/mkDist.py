@@ -19,6 +19,7 @@ sys.path.insert(0,"lib")
 
 ## instantiates a Freezer object
 f = Freezer(distdir = distdir, includes=( "daemon",
+                                          "MySQLdb",
                                           "hCommand",
                                           "hDatabase",
                                           "hDBConnection",
