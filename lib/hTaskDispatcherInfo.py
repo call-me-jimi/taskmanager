@@ -8,7 +8,7 @@ class hTaskDispatcherInfo(object):
         # the taskmanager package.
         self.tmpath = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/..') )
 
-        self.cfgFile = "%s/var/taskdispatcher.info" % self.tmpath
+        self.cfgFile = "{tmpath}/var/taskdispatcher.info".format(tmpath=self.tmpath)
         self.taskDispatcherInfo = {}
         
         cfg = ConfigParser.SafeConfigParser()
