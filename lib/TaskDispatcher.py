@@ -115,6 +115,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
         # read cluster from config file and update database
         self.initClusterByTableFile()
+        #self.initClusterByConfigFile()
 
         # check if user in etc/users.txt are known
         self.initUsers()
@@ -886,22 +887,28 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
             # get all number of jobs for each status type
             #print "QUERY",dbconnection.query( db.JobStatus.name, func.count('*') ).join( db.JobDetails, db.JobDetails.job_status_id==db.JobStatus.id ).group_by( db.JobStatus.name )
+            t1 = datetime.now()
             counts = dict( dbconnection.query( db.JobStatus.name, func.count('*') ).join( db.JobDetails, db.JobDetails.job_status_id==db.JobStatus.id ).group_by( db.JobStatus.name ).all() )
+            t2 = datetime.now()
+            print "Job Query in {dt}".format(dt=str(t2-t1))
 
             if not counts:
                 # no jobs so far in the database
                 counts = {}
 
-            t = datetime.now()
+            t1 = datetime.now()
             slotInfo = dbconnection.query( func.count('*'),
                                            func.sum( db.Host.max_number_occupied_slots ), 
                                            func.sum( db.HostSummary.number_occupied_slots ) ).select_from( db.Host ).join( db.HostSummary, db.HostSummary.host_id==db.Host.id ).filter( db.HostSummary.active==True ).one()
+            t2 = datetime.now()
+            print "Host Query in {dt}".format(dt=str(t2-t1))
+            print 
 
             if slotInfo[0]==0:
                 slotInfo = (0, 0, 0)
 
             href = "--------------------------------------------------"
-            info = "[{t}] STATUS OF TASKDISPATCHER ON {h}:{p}".format(t=t, h=self.host, p=self.port)
+            info = "[{t}] STATUS OF TASKDISPATCHER ON {h}:{p}".format(t=t1, h=self.host, p=self.port)
             status = ""
             status += "{s:>20} : {value}\n".format(s="active cluster", value=self.active )
             status += "{s:>20} : {value}\n".format(s="active hosts", value=slotInfo[0] )
@@ -1266,15 +1273,15 @@ class TaskDispatcherRequestProcessor(object):
                                                          regExp = '^setallrjobsasfinished$',
                                                          help = "set all running jobs as finished. free occupied slots on hosts.")
 
-        self.commands["REMOVEALLJOBSOFUSER"] = hCommand(command_name = 'removealljobsofuser',
-                                                        arguments = "<username>",
-                                                        regExp = '^removealljobsofuser:(.*)',
-                                                        help = "remove all jobs of user from database")
+        self.commands["RMJOBS"] = hCommand(command_name = 'rmjobs',
+                                           arguments = "<username>",
+                                           regExp = '^rmjobs:(.*)',
+                                           help = "remove all jobs of user from database")
 
-        self.commands["REMOVEALLWJOBSOFUSER"] = hCommand(command_name = 'removeallwjobsofuser',
-                                                        arguments = "<username>",
-                                                        regExp = '^removeallwjobsofuser:(.*)',
-                                                        help = "remove all waiting jobs of user from database")
+        self.commands["RMWJOBS"] = hCommand(command_name = 'rmwjobs',
+                                            arguments = "<username>",
+                                            regExp = '^rmwjobs:(.*)',
+                                            help = "remove all waiting jobs of user from database")
         
 
         
@@ -2044,8 +2051,8 @@ class TaskDispatcherRequestProcessor(object):
             
             request.send( "set {n} jobs as finished".format(n=len(rJobs)) )
             
-        elif self.commands["REMOVEALLJOBSOFUSER"].re.match( requestStr ):
-            c = self.commands["REMOVEALLJOBSOFUSER"]
+        elif self.commands["RMJOBS"].re.match( requestStr ):
+            c = self.commands["RMJOBS"]
             
             user = c.re.match( requestStr ).groups()[0]
 
@@ -2084,25 +2091,30 @@ class TaskDispatcherRequestProcessor(object):
                 
             request.send( "removed {j} of user {u}.".format(j=len(jobs),u=user ) )
             
-        elif self.commands["REMOVEALLWJOBSOFUSER"].re.match( requestStr ):
-            c = self.commands["REMOVEALLWJOBSOFUSER"]
+        elif self.commands["RMWJOBS"].re.match( requestStr ):
+            c = self.commands["RMWJOBS"]
             
-            user = c.re.match( requestStr ).groups()[0]
+            userName = c.re.match( requestStr ).groups()[0]
             
-            loggerWrapper.write( "remove all waiting jobs of user {u}".format(u=user ) )
-
             # remove all waiting jobs
-            dbconnection.query( db.WaitingJob ).\
-                                join( db.Job ).\
-                                join( db.User ).\
-                                filter( db.User.name==user ).delete()
+            jobs = dbconnection.query( db.WaitingJob ).\
+                   join( db.User ).\
+                   filter( db.User.name==userName ).all()
 
-            # remove job from database
-            dbconnection.query( db.Job ).\
-                                join( db.User ).\
-                                join( db.JobDetails ).\
-                                filter( and_(db.User.name==user, db.JobDetails.job_status_id==TD.databaseIDs['waiting'] ) ).delete()
+            loggerWrapper.write( "remove {n} entries of user {u} from waiting_job table ".format(n=len(jobs), u=userName ) )
+
+            dbconnection.delete( *jobs )
+            dbconnection.commit()
             
+            # remove jobs from database
+            jobs = dbconnection.query( db.Job ).\
+                   join( db.User ).\
+                   join( db.JobDetails ).\
+                   filter( and_(db.User.name==userName, db.JobDetails.job_status_id==TD.databaseIDs['waiting'] ) ).all()
+            
+            loggerWrapper.write( "remove {n} entries of user {u} from job table ".format(n=len(jobs), u=userName ) )
+            
+            dbconnection.delete( *jobs )
             dbconnection.commit()
             
             request.send( "done" )
