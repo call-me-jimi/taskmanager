@@ -822,7 +822,8 @@ class TaskManagerServerProcessor(object):
                                          sslConnection = self.TMS.sslConnection,
                                          keyfile = self.TMS.keyfile,
                                          certfile = self.TMS.certfile,
-                                         ca_certs = self.TMS.ca_certs )
+                                         ca_certs = self.TMS.ca_certs,
+                                         verboseMode = self.TMS.verboseMode )
                     TMMS.run()
 
                     if not TMMS.running:
@@ -1419,7 +1420,8 @@ class TaskManagerServerProcessor(object):
                                      sslConnection = self.TMS.sslConnection,
                                      keyfile = self.TMS.keyfile,
                                      certfile = self.TMS.certfile,
-                                     ca_certs = self.TMS.ca_certs )
+                                     ca_certs = self.TMS.ca_certs,
+                                     verboseMode = self.TMS.verboseMode )
                 TMMS.run()
                 
                 if not TMMS.running:
@@ -1834,7 +1836,8 @@ class TaskManagerServerProcessor(object):
                                      sslConnection = self.TMS.sslConnection,
                                      keyfile = self.TMS.keyfile,
                                      certfile = self.TMS.certfile,
-                                     ca_certs = self.TMS.ca_certs )
+                                     ca_certs = self.TMS.ca_certs,
+                                     verboseMode = self.TMS.verboseMode )
 
                 self.TMS.cluster[hostID] = TMMS
             #    
