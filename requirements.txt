@@ -1,0 +1,3 @@
+sqlalchemy
+bbfreeze
+MySQL-python
