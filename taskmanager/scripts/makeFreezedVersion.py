@@ -30,8 +30,8 @@ f = Freezer(distdir = distdir, includes=( "daemon",
                                           "hTaskManagerMenialServerInfo",
                                           "hTaskManagerServerInfo",
                                           "hTMUtils",
+                                          "hTimeLogger",
                                           "TaskDispatcher",
-                                          "TimeLogger",
                                           "TMMS",
                                           "TMS" ) )
 

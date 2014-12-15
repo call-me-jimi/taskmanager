@@ -308,10 +308,10 @@ class TaskManagerMenialServerProcessor:
 
         #dbconnection = hDBConnection( TMMS.dbconnection.ScopedSession )
         
-        self.outputMsg('[%s] IN: %s' % (threadName,s),TMMS)
+        self.print('[%s] IN: %s' % (threadName,s),TMMS)
 
         if not receivedStr:
-            self.outputMsg('[%s] ... socket has been closed' % threadName,TMMS)
+            self.print('[%s] ... socket has been closed' % threadName,TMMS)
             return False, False
 
         #####################
@@ -417,7 +417,7 @@ class TaskManagerMenialServerProcessor:
 
             startTime = datetime.now()
 
-            self.outputMsg('[{th}] [job {j}] job has been started at {t}'.format(th=threadName,j=jobID,t=str(startTime)),TMMS)
+            self.print('[{th}] [job {j}] job has been started at {t}'.format(th=threadName,j=jobID,t=str(startTime)),TMMS)
 
             # execute job in a subprocess
             sp = subprocess.Popen(command,
@@ -476,7 +476,7 @@ class TaskManagerMenialServerProcessor:
 
             endTime = datetime.now()
 
-            self.outputMsg('[{th}] [{j}] job has been finished at {t}'.format(th=threadName,j=jobID,t=str(endTime)),TMMS)
+            self.print('[{th}] [{j}] job has been finished at {t}'.format(th=threadName,j=jobID,t=str(endTime)),TMMS)
 
             # write command, stdout, and stderr to a logfile
             if logFile:
@@ -654,7 +654,7 @@ class TaskManagerMenialServerProcessor:
         return
         #return persistentSocket,terminateLater
 
-    def outputMsg(self,s, TMMS):
+    def print(self,s, TMMS):
         logger.info("%s" % s)
 
         if TMMS.logFileTMMS:

@@ -7,4 +7,4 @@ com=`basename $0`
 cd $d/dist && ./$com ${@+"$@"}
 
 # call with python
-#python $d/python/$com.py ${@+"$@"}
+#python $d/py/$com.py ${@+"$@"}

@@ -34,14 +34,47 @@ System requirements
 Installation & Configuration
 ============================
 
-In order to install the TaskManager follow the given configuation steps:
+In order to install the TaskManager please follow the configuation steps:
 
-1. Copy entire TaskManager directory to a directory of your choice, e.g., /usr/local/opt
+** Copy entire TaskManager directory to a directory of your choice, e.g., /usr/local/opt
+
+** Create virtual environment
+
+# change to your Taskmanager path (set environmental variable)
+cd ${TASKMANAGER_VE_PATH}
+
+# create virtual environment
+virtualenv taskmanagerVE
+
+# activate virtual environment
+source taskmanagerVE/bin/activate
+
+# install mysql (for python package MySQLdb)
+cd taskmanagerVE
+mkdir src
+cd src
+wget http://dev.mysql.com/get/Downloads/MySQL-5.6/mysql-5.6.22.tar.gz
+tar xzvf mysql-5.6.22.tar.gz
+cd mysql-5.6.22
+cmake .
+make -j 6 install DESTDIR=${TASKMANAGER_VE_PATH}/usr/mysql-5.6.22
+cd ${TASKMANAGER_VE_PATH}/usr/mysql-5.6.22
+mv usr/local/mysql/* .
+rm -rf usr
+ln -s ${TASKMANAGER_VE_PATH}/usr/mysql-5.6.22/bin/* ${TASKMANAGER_VE_PATH}/bin/
+
+
+
+# install packages
+pip install -r requirements.txt
+sqlalchemy
+bbfreeze
+MySQL-python
 
 2. (optional) Create a frozen version of several python programs with freeze. Modify and execute script
       
       cd <YOUR_TASKMANAGER_PATH>
-      scripts/mkDist.sh
+      python scripts/makeFreezedVersion.py
 
 For each program all necessary python libraries are copied to a single directory and a binary is
 created. Therefore a load of python libraries over an intranet is not anymore necessary and it makes

@@ -27,9 +27,9 @@ from sqlalchemy import and_, not_, func
 from operator import itemgetter, attrgetter
 from sqlalchemy.orm.exc import NoResultFound
 
-from hTimeLogger import hTimeLogger
-from hJobScheduler import hJobSchedulerPrioritized as JobScheduler
-from hLog import hLog
+from .hTimeLogger import hTimeLogger
+from .hJobScheduler import hJobSchedulerPrioritized as JobScheduler
+from .hLog import hLog
 
 # logging
 import logging
