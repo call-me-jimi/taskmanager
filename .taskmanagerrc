@@ -1,3 +1,0 @@
-export TASKMANAGERPATH=/home/H0001-1/h.hache/local/opt/taskmanager.git.dev
-source /home/H0001-1/h.hache/local/opt/taskmanager.git.dev/taskmanagerVE/bin/activate
-export PATH=/home/H0001-1/h.hache/local/opt/taskmanager.git.dev/taskmanager/bin:$PATH
