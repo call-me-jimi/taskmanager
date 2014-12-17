@@ -37,11 +37,11 @@ f = Freezer(distdir = distdir, includes=( "daemon",
 
 
 ## add scripts
-f.addScript("bin/python/hRunJob.py")
-f.addScript("bin/python/hConnect.py")
-f.addScript("bin/python/hRunTMS.py")
-f.addScript("bin/python/hRunTMMS.py")
-f.addScript("bin/python/hRunTaskDispatcher.py")
+f.addScript("bin/py/hRunJob.py")
+f.addScript("bin/py/hConnect.py")
+f.addScript("bin/py/hRunTMS.py")
+f.addScript("bin/py/hRunTMMS.py")
+f.addScript("bin/py/hRunTaskDispatcher.py")
 
 ## starts the freezing process
 f()
