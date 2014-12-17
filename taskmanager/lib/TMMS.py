@@ -308,10 +308,10 @@ class TaskManagerMenialServerProcessor:
 
         #dbconnection = hDBConnection( TMMS.dbconnection.ScopedSession )
         
-        self.print('[%s] IN: %s' % (threadName,s),TMMS)
+        self.message('[%s] IN: %s' % (threadName,s),TMMS)
 
         if not receivedStr:
-            self.print('[%s] ... socket has been closed' % threadName,TMMS)
+            self.message('[%s] ... socket has been closed' % threadName,TMMS)
             return False, False
 
         #####################
@@ -324,9 +324,11 @@ class TaskManagerMenialServerProcessor:
             h = []
             h.append("Commands:")
             h.append("  job commands:")
-            h.append("    runjob       run job on host.")
+            h.append("    runjob:<JOBID>     run job on host.")
+            h.append("    jobstarted:<JSON>  info that job has been started.")
+            h.append("    jobfinished:<JSON> info that job has been finished.")
             h.append("    killjobs:<PID>[:<PID>...]")
-            h.append("                 kill jobs with pids.")
+            h.append("                       kill jobs with pids.")
             h.append("")
             h.append("  server commands:")
             h.append("    ping         ping server.")
@@ -385,197 +387,195 @@ class TaskManagerMenialServerProcessor:
         # runjob
         #    run job on host and monitor
         elif re.match('^runjob:(.*)$',receivedStr):
-            jsonInObj = re.match('runjob:(.*)$',receivedStr).groups()[0]
-            jsonInObj = json.loads(jsonInObj)
+            try:
+                jsonInObj = re.match('runjob:(.*)$',receivedStr).groups()[0]
+                jsonInObj = json.loads(jsonInObj)
 
-            jobID = jsonInObj['jobID']
-            
-            ##command = jsonInObj['command']
-            ##logFile = jsonInObj.get('logFile',None)
-            ##shell = jsonInObj['shell']
+                jobID = jsonInObj['jobID']
 
-            # connect to database
-            dbconnection = hDBConnection()
+                ##command = jsonInObj['command']
+                ##logFile = jsonInObj.get('logFile',None)
+                ##shell = jsonInObj['shell']
 
-            # get job instance
-            job = dbconnection.query( db.Job ).get( jobID )
+                # connect to database
+                dbconnection = hDBConnection()
 
-            command = job.command
-            stdout = job.stdout
-            stderr = job.stderr
-            logFile = job.logfile
-            shell = job.shell
-            
-            # create temporary file object for command which is executed
-            fCom = tempfile.NamedTemporaryFile(prefix="tmms.",bufsize=0,delete=False)
-            fCom.write("%s\n" % command)
-            fCom.close()
+                # get job instance
+                job = dbconnection.query( db.Job ).get( jobID )
 
-            # create temporary file object for stdout and stderr of executing command
-            fOut = tempfile.NamedTemporaryFile(prefix="tmms.",bufsize=0,delete=False)
-            fErr = tempfile.NamedTemporaryFile(prefix="tmms.",bufsize=0,delete=False)
+                command = job.command
+                stdout = job.stdout
+                stderr = job.stderr
+                logFile = job.logfile
+                shell = job.shell
 
-            startTime = datetime.now()
+                # create temporary file object for command which is executed
+                fCom = tempfile.NamedTemporaryFile(prefix="tmms.",bufsize=0,delete=False)
+                fCom.write("%s\n" % command)
+                fCom.close()
 
-            self.print('[{th}] [job {j}] job has been started at {t}'.format(th=threadName,j=jobID,t=str(startTime)),TMMS)
+                # create temporary file object for stdout and stderr of executing command
+                fOut = tempfile.NamedTemporaryFile(prefix="tmms.",bufsize=0,delete=False)
+                fErr = tempfile.NamedTemporaryFile(prefix="tmms.",bufsize=0,delete=False)
 
-            # execute job in a subprocess
-            sp = subprocess.Popen(command,
-                                  shell=True,
-                                  executable=shell,
-                                  stdout=fOut,
-                                  stderr=fErr)
+                startTime = datetime.now()
 
-            # store info about running job in database
-            
+                self.message('[{th}] [job {j}] job has been started at {t}'.format(th=threadName,j=jobID,t=str(startTime)),TMMS)
+
+                ###############################
+                # execute job in a subprocess #
+                ###############################
+                sp = subprocess.Popen(command,
+                                      shell=True,
+                                      executable=shell,
+                                      stdout=fOut,
+                                      stderr=fErr)
+
+                # tell server that job has been started
+                clientSock = hSocket(host=self.host,
+                                     port=self.port,
+                                     EOCString=self.EOCString,
+                                     sslConnection=self.sslConnection,
+                                     certfile=certfile,
+                                     keyfile=keyfile,
+                                     ca_certs=ca_certs,
+                                     catchErrors=False)
+
+                clientSock.send("jobstarted:{jobID}".format(jobID=jobID))
+                clientSock.close()
+
+                # store info about running job in database
+
+                # set job as running
+                dbconnection.query( db.JobDetails.job_id ).\
+                  filter( db.JobDetails.job_id==jobID ).\
+                  update( {db.JobDetails.job_status_id: TMMS.databaseIDs['running'] } )
+
+                job.job_details.host_id = TMMS.hostID
+                job.job_details.pid = sp.pid
+
+                # set history
+                jobHistory = db.JobHistory( job=job,
+                                            job_status_id = TMMS.databaseIDs['running'] )
+
+                dbconnection.introduce( jobHistory )
+                dbconnection.commit()
+
+                ###################################
+                # wait until process has finished #
+                sp.wait()
+
+                endTime = datetime.now()
+
+                self.message('[{th}] [{j}] job has been finished at {t}'.format(th=threadName,j=jobID,t=str(endTime)),TMMS)
+
+                ##################################################
+                # write command, stdout, and stderr to a logfile #
+                if logFile:
+                    try:
+                        f = open('%s' % logFile,'w')
+
+                        f.write("-----------------------\n")
+                        f.write("--------command--------\n")
+                        f.write("-----------------------\n")
+                        f.write("%s\n" %command)
+                        f.write("\n")
+                        f.write("-----------------------\n")
+                        f.write("----------info---------\n")
+                        f.write("-----------------------\n")
+                        f.write("host: {0}\n".format(os.uname()[1]))
+                        f.write("started: %s\n" % (startTime))
+                        f.write("finished: %s\n" % (endTime))
+                        f.write("\n")
+
+                        f.write("-----------------------\n")
+                        f.write("------BEGIN stdout-----\n")
+                        f.write("-----------------------\n")
+
+                        fOut.seek(0)
+
+                        for line in fOut:
+                            f.write("%s" % line)
+
+                        f.write("-----------------------\n")
+                        f.write("------END stdout-------\n")
+                        f.write("-----------------------\n")
+
+                        f.write("\n")
+
+                        f.write("-----------------------\n")
+                        f.write("------BEGIN stderr-----\n")
+                        f.write("-----------------------\n")
+
+                        fErr.seek(0)
+                        for line in fErr:
+                            f.write("%s" % line)
+
+                        f.write("-----------------------\n")
+                        f.write("------END stderr-------\n")
+                        f.write("-----------------------\n")
+
+                        f.close()
+                    except:
+                        # error while opening or writing file
+                        # what to do??
+                        pass
+
+                fOut.close()
+                fErr.close()
+
+                # connect to database
+                dbconnection = hDBConnection()
+
+                # get job instance (again, since we use here another connection)
+                job = dbconnection.query( db.Job ).get( jobID )
+
+                # set job as finished
+                dbconnection.query( db.JobDetails.job_id ).\
+                  filter( db.JobDetails.job_id==jobID ).\
+                  update( {db.JobDetails.job_status_id: TMMS.databaseIDs['finished'] } )
+
+                job.job_details.return_code = sp.returncode
+
+                # set history
+                jobHistory = db.JobHistory( job=job,
+                                            job_status_id = TMMS.databaseIDs['finished'] )
+
+                dbconnection.introduce( jobHistory )
+
+                finishedJob = db.FinishedJob( job=job )
+                
+                dbconnection.introduce( finishedJob )
+                dbconnection.commit()
+
+            except:
+                # something went wrong.
+                pass
+
+            processingStatus = "done"
+
+        ##########
+        # job has been started
+        elif re.match('^jobstarted:(.*)', receivedStr):
+            jobID = re.match('^jobstarted:(.*)', receivedStr).groups()[0]
+
             # set job as running
             dbconnection.query( db.JobDetails.job_id ).\
               filter( db.JobDetails.job_id==jobID ).\
               update( {db.JobDetails.job_status_id: TMMS.databaseIDs['running'] } )
-              
+
             job.job_details.host_id = TMMS.hostID
             job.job_details.pid = sp.pid
 
             # set history
             jobHistory = db.JobHistory( job=job,
                                         job_status_id = TMMS.databaseIDs['running'] )
-            
+
             dbconnection.introduce( jobHistory )
             dbconnection.commit()
+
             
-            ##jsonOutObj = {'jobID': jobID,
-            ##              'pid': sp.pid,
-            ##              'fileCommand': fCom.name,
-            ##              'fileOutput': fOut.name,
-            ##              'fileError': fErr.name}
-            ##
-            ##jsonOutObj = json.dumps(jsonOutObj)
-            ##
-            ##
-            ### send info to TMS
-            ##try:
-            ##    clientSock = hSocket(host=TMMS.tmsHost,
-            ##                         port=TMMS.tmsPort,
-            ##                         EOCString=TMMS.EOCString,
-            ##                         sslConnection=True,
-            ##                         certfile=certfile,
-            ##                         keyfile=keyfile,
-            ##                         ca_certs=ca_certs,
-            ##                         catchErrors=False)
-            ##
-            ##    clientSock.send("ProcessStarted:%s" % jsonOutObj)
-            ##    clientSock.close()
-            ##except:
-            ##    print sys.exc_info()[1]
-            ##    sys.stderr.write("TMMS: Connection to TMS failed. Job %s is terminated." % jobID)
-            ##    # write to log file
-            ##    #self.killJob()
-
-            # wait until process has finished
-            sp.wait()
-
-            endTime = datetime.now()
-
-            self.print('[{th}] [{j}] job has been finished at {t}'.format(th=threadName,j=jobID,t=str(endTime)),TMMS)
-
-            # write command, stdout, and stderr to a logfile
-            if logFile:
-                try:
-                    f = open('%s' % logFile,'w')
-
-                    f.write("-----------------------\n")
-                    f.write("--------command--------\n")
-                    f.write("-----------------------\n")
-                    f.write("%s\n" %command)
-                    f.write("\n")
-                    f.write("-----------------------\n")
-                    f.write("----------info---------\n")
-                    f.write("-----------------------\n")
-                    f.write("host: {0}\n".format(os.uname()[1]))
-                    f.write("started: %s\n" % (startTime))
-                    f.write("finished: %s\n" % (endTime))
-                    f.write("\n")
-
-                    f.write("-----------------------\n")
-                    f.write("------BEGIN stdout-----\n")
-                    f.write("-----------------------\n")
-
-                    fOut.seek(0)
-
-                    for line in fOut:
-                        f.write("%s" % line)
-
-                    f.write("-----------------------\n")
-                    f.write("------END stdout-------\n")
-                    f.write("-----------------------\n")
-
-                    f.write("\n")
-
-                    f.write("-----------------------\n")
-                    f.write("------BEGIN stderr-----\n")
-                    f.write("-----------------------\n")
-
-                    fErr.seek(0)
-                    for line in fErr:
-                        f.write("%s" % line)
-
-                    f.write("-----------------------\n")
-                    f.write("------END stderr-------\n")
-                    f.write("-----------------------\n")
-
-                    f.close()
-                except:
-                    # error while opening or writing file
-                    # what to do??
-                    pass
-
-            fOut.close()
-            fErr.close()
-
-            # connect to database
-            dbconnection = hDBConnection()
-
-            # get job instance (again, since we use here another connection)
-            job = dbconnection.query( db.Job ).get( jobID )
-            
-            # set job as finished
-            dbconnection.query( db.JobDetails.job_id ).\
-              filter( db.JobDetails.job_id==jobID ).\
-              update( {db.JobDetails.job_status_id: TMMS.databaseIDs['finished'] } )
-            
-            job.job_details.return_code = sp.returncode
-
-            # set history
-            jobHistory = db.JobHistory( job=job,
-                                        job_status_id = TMMS.databaseIDs['finished'] )
-            
-            dbconnection.introduce( jobHistory )
-
-            finishedJob = db.FinishedJob( job=job )
-
-            dbconnection.introduce( finishedJob )
-            
-            dbconnection.commit()
-            
-            #try:
-            #    clientSock = hSocket(host=TMMS.tmsHost,
-            #                         port=TMMS.tmsPort,
-            #                         EOCString=TMMS.EOCString,
-            #                         sslConnection=TMMS.sslConnection,
-            #                         certfile=certfile,
-            #                         keyfile=keyfile,
-            #                         ca_certs=ca_certs,
-            #                         catchErrors=False)
-            #
-            #    clientSock.send("ProcessFinished:%s" % (jobID))
-            #    clientSock.close()
-            #except:
-            #    sys.stderr.write("TMMS: Connection to TMS failed. ProcessFinish could not be send for job %s!" % jobID)
-            #    # write to log file
-
-            processingStatus = "done"
-
-
+        
         ########
         # gettmmsinfo
         #    get task manager menial server info

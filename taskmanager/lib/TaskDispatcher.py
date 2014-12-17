@@ -1032,7 +1032,7 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
                         loggerWrapper.write( "... got {n} jobs to be executed.".format(n=len(jobIDs) ), logCategory="sendingJobs" )
 
                         # iterate over all jobs
-                        # reduced freeSlots accordingly after job has been submitted
+                        # reduce freeSlots accordingly after job has been submitted
                         for idx,jobID in enumerate(jobIDs):
                             # add job to locked jobs, i.e., they are currently processed
                             #self.TD.lockedJobs.add( jobID )
