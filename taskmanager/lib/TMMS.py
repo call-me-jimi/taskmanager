@@ -654,7 +654,9 @@ class TaskManagerMenialServerProcessor:
         return
         #return persistentSocket,terminateLater
 
-    def print(self,s, TMMS):
+    def message(self,s, TMMS):
+        """! @brief print a message on stdout and into a logfile"""
+        
         logger.info("%s" % s)
 
         if TMMS.logFileTMMS:
