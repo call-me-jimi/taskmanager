@@ -27,7 +27,7 @@ logger.addHandler(consoleLog)
 
 
 
-# get path to taskmanager. it is assumed that this file is in the bin/python directory of
+# get path to taskmanager. it is assumed that this file is in the lib directory of
 # the taskmanager package.
 tmpath = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/..') )
 
@@ -155,8 +155,6 @@ class hServerProxy(object):
                 pass
 
             # try to start a new Server on port in case of status 2 or 3
-            logger.info( "[{i}. attempt] invoke server on {h}:{p}.".format(i=cnt, h=self.host, p=self.port) )
-                
             status = self.invokeServer( cnt )
 
     def isRunning( self ):
@@ -242,17 +240,16 @@ class hServerProxy(object):
 
         try:
             if self.serverType=='TMS':
-                runServer = 'hRunTMS.py'
+                runServer = 'hRunTMS'
             elif self.serverType=='TMMS':
-                runServer = 'hRunTMMS.py'
+                runServer = 'hRunTMMS'
 
-            com = "ssh -x -a {host} {python} {binpath}/python/{runServer} -p {port}".format( python = self.python,
-                                                                                             host = self.host,
-                                                                                             runServer = runServer,
-                                                                                             binpath = binPath,
-                                                                                             port = self.port)
+            com = "ssh -x -a {host} {binpath}/{runServer} -p {port}".format( host = self.host,
+                                                                             binpath = binPath,
+                                                                             runServer = runServer,
+                                                                             port = self.port)
 
-            logger.info( "[{i}. attempt] command:".format(i=cnt, command=com) )
+            logger.info( "[{i}. attempt] command: {command}".format(i=cnt, command=com) )
 
             # invoke server as daemon
             sp=subprocess.Popen(com,

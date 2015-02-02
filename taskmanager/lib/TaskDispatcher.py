@@ -22,7 +22,7 @@ import SocketServer
 import threading
 import argparse
 import textwrap
-from pprint import pprint
+from pprint import pprint as pp
 from sqlalchemy import and_, not_, func
 from operator import itemgetter, attrgetter
 from sqlalchemy.orm.exc import NoResultFound
@@ -872,7 +872,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             #self.Lock.release()
             
             self.checkingFinishedJobs = False
-        
+
     def printStatus(self, returnString=False):
         """!@brief print status of server to stdout if not outSream is given
 
@@ -1171,6 +1171,9 @@ class TaskDispatcherRequestProcessor(object):
         self.commands["CHECKDATABASE"] = hCommand( command_name = "checkdatabase",
                                                    regExp = "^checkdatabase$",
                                                    help = "check database for waiting jobs")
+        self.commands["CHECKSLOTS"] = hCommand( command_name = "checkslots",
+                                                   regExp = "^checkslots$",
+                                                   help = "check occupied slots")
         self.commands["ENABLEUSER"] = hCommand( command_name = "enableuser",
                                                  arguments = "<USER>",
                                                  regExp = "^enableuser:(.*)",
@@ -1179,6 +1182,9 @@ class TaskDispatcherRequestProcessor(object):
                                                  arguments = "<USER>",
                                                  regExp = "^disableuser:(.*)",
                                                  help = "disable user.")
+        self.commands["LSUSERS"] = hCommand( command_name = "lsusers",
+                                                 regExp = "^lsusers$",
+                                                 help = "show all users.")
         self.commands["SETINTERVALCHECKTD"] = hCommand( command_name = "setintervalchecktd",
                                                  arguments = "<TIME>",
                                                  regExp = "^setintervalchecktd:(.*)",
@@ -1375,6 +1381,21 @@ class TaskDispatcherRequestProcessor(object):
             ##
             ##print "number of waiting jobs:",len(jobIDs)
             
+        elif self.commands["CHECKSLOTS"].re.match( requestStr ):
+            counts = dict( dbconnection.query( db.Host.id, func.sum( db.Job.slots ) ).\
+                           join( db.JobDetails, db.JobDetails.host_id==db.Host.id ).\
+                           join( db.JobStatus, db.JobDetails.job_status_id==db.JobStatus.id ).\
+                           join( db.Job, db.JobDetails.job_id==db.Job.id ).\
+                           filter( db.JobStatus.id.in_( [ TD.databaseIDs['pending'],TD.databaseIDs['running'] ] ) ).\
+                           group_by( db.Host.full_name ).all() )
+
+            for h in dbconnection.query( db.HostSummary ):
+                h.number_occupied_slots = counts.get( h.id, 0)
+
+            dbconnection.commit()
+            
+            request.send( "number of occupied slots have been updated" )
+            
         elif self.commands['ENABLEUSER'].re.match( requestStr ):
             c = self.commands["ENABLEUSER"]
             
@@ -1398,6 +1419,24 @@ class TaskDispatcherRequestProcessor(object):
                 dbconnection.commit()
                 
                 request.send('done.')
+            except:
+                request.send('failed.')
+                
+        elif self.commands['LSUSERS'].re.match( requestStr ):
+            
+            try:
+                users = dbconnection.query( db.User ).all()
+
+                response = ""
+                for user in users:
+                    response += "{name} ({e})  [TMS] {tmsHost}:{tmsPort}\n".format( name = user.name,
+                                                                                                                  e = 'enabled' if user.name else 'disabled',
+                                                                                                                  tmsHost = user.tms_host,
+                                                                                                                  tmsPort = user.tms_port )
+
+                
+                
+                request.send( response )
             except:
                 request.send('failed.')
             
@@ -1922,7 +1961,10 @@ class TaskDispatcherRequestProcessor(object):
             
             
         elif self.commands["SETALLPJOBSASWAITING"].re.match( requestStr ):
+            # get all pending jobs
             pJobs = dbconnection.query( db.Job ).join( db.JobDetails ).filter( db.JobDetails.job_status_id==TD.databaseIDs['pending'] ).all()
+
+            # get occupied slots of each host
             slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
             
             occupiedSlots = defaultdict( int )
@@ -1937,7 +1979,7 @@ class TaskDispatcherRequestProcessor(object):
                 # add to waiting jobs
                 wJob = db.WaitingJob( job=job,
                                       user_id=job.user_id,
-                                      priorityValue=priority.value )	# calculate a priority value
+                                      priorityValue=job.priority.value )
                 
                 # set history
                 jobHistory = db.JobHistory( job=job,
@@ -1945,11 +1987,13 @@ class TaskDispatcherRequestProcessor(object):
 
                 dbconnection.introduce( jobHistory, wJob )
 
+            dbconnection.commit()
+            
             # free occupied slots from host
             for h in occupiedSlots:
                 dbconnection.query( db.HostSummary ).\
                   filter( db.HostSummary.host_id==h ).\
-                  update( { db.HostSummary.number_occupied_slots: slots[ h ] - occupiedSlots[ h ] } )
+                  update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots - occupiedSlots[ h ] } )
 
             dbconnection.commit()
 
@@ -1983,9 +2027,7 @@ class TaskDispatcherRequestProcessor(object):
             for h in occupiedSlots:
                 dbconnection.query( db.HostSummary ).\
                   filter( db.HostSummary.host_id==h ).\
-                  update( { db.HostSummary.number_occupied_slots: slots[ h ] - occupiedSlots[ h ] } )
-
-
+                  update( { db.HostSummary.number_occupied_slots: db.HostSummary.number_occupied_slots - occupiedSlots[ h ] } )
 
             dbconnection.commit()
             
@@ -2056,40 +2098,52 @@ class TaskDispatcherRequestProcessor(object):
             
             user = c.re.match( requestStr ).groups()[0]
 
-            # remove waiting and finished jobs
-            
-            wJobs = dbconnection.query( db.WaitingJob ).join( db.User ).filter( db.User.name==user ).all()
-            for wJob in wJobs:
-                dbconnection.delete( wJob )
+            try:
+                userInstance = dbconnection.query( db.User ).filter( db.User.name==user ).one()
+                print userInstance
+
+                counts = dict( dbconnection.query( db.Host.id, func.sum( db.Job.slots ) ).\
+                               join( db.JobDetails, db.JobDetails.host_id==db.Host.id ).\
+                               join( db.JobStatus, db.JobDetails.job_status_id==db.JobStatus.id ).\
+                               join( db.Job, db.JobDetails.job_id==db.Job.id ).\
+                               filter( db.Job.user==userInstance ).\
+                               filter( db.JobStatus.id.in_( [ TD.databaseIDs['pending'],TD.databaseIDs['running'] ] ) ).\
+                               group_by( db.Host.full_name ).all() )
+
+                # stopp running jobs
+
+
+                # remove waiting
+                loggerWrapper.write( "remove waiting jobs of user {u}".format(u=user ) )
+                numRemovedJobs = dbconnection.query( db.WaitingJob ).filter( db.WaitingJob.user==userInstance ).delete()
+                loggerWrapper.write( "... {j} waiting jobs have been removed".format(j=numRemovedJobs ) )
+                #dbconnection.delete( *wJobs )
+
+                # and finished jobs
+                fJobs = dbconnection.query( db.FinishedJob ).join( db.Job ).filter( db.Job.user==userInstance ).all()
+                loggerWrapper.write( "remove {n} finished jobs of user {u}".format(n=len(fJobs), u=user ) )
+                dbconnection.delete( *fJobs )
+                loggerWrapper.write( "...done" )
+
+                # remove all jobs of user
+                jobs = dbconnection.query( db.Job ).filter( db.Job.user==userInstance )
+                numJobs = jobs.count()
                 
-            fJobs = dbconnection.query( db.FinishedJob ).join( db.Job).join( db.User ).filter( db.User.name==user ).all()
-            for fJob in fJobs:
-                dbconnection.delete( fJob )
-            
-            jobs = dbconnection.query( db.Job ).join( db.User ).filter( db.User.name==user ).all()
-            
-            slots = dict( dbconnection.query( db.HostSummary.host_id, db.HostSummary.number_occupied_slots ).all() )
+                loggerWrapper.write( "remove {j} jobs of user {u}".format(j=numJobs, u=user ) )
+                map( dbconnection.delete, jobs )
+                loggerWrapper.write( "...done" )
 
-            loggerWrapper.write( "remove {j} of user {u}".format(j=len(jobs),u=user ) )
-            
-            occupiedSlots = defaultdict( int )
-            for job in jobs:
-                loggerWrapper.write( "remove job {i}".format(i=job.id) )
-                if job.job_details.job_status_id in (TD.databaseIDs['pending'],TD.databaseIDs['running']):
-                    occupiedSlots[ job.job_details.host_id ] += job.slots
+                # update number occupied slots of each host
+                for h in dbconnection.query( db.HostSummary ):
+                    h.number_occupied_slots -= counts.get( h.id, 0)
 
-                dbconnection.delete( job )
+                dbconnection.commit()
+
+                request.send( "removed {j} of user {u}.".format(j=numJobs,u=user ) )
+            except:
+                traceback.print_exc(file=sys.stderr)
                 
-            # free occupied slots from host
-            for h in occupiedSlots:
-                dbconnection.query( db.HostSummary ).\
-                  filter( db.HostSummary.host_id==h ).\
-                  update( { db.HostSummary.number_occupied_slots: slots[ h ] - occupiedSlots[ h ] } )
-
-
-            dbconnection.commit()
-                
-            request.send( "removed {j} of user {u}.".format(j=len(jobs),u=user ) )
+                request.send( "nothing has been removed" )
             
         elif self.commands["RMWJOBS"].re.match( requestStr ):
             c = self.commands["RMWJOBS"]

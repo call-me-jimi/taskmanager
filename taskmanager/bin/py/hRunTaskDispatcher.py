@@ -45,7 +45,7 @@ if __name__ == '__main__':
     defaultTDHost = os.uname()[1]
     defaultTDPort = tdConfig.getint( 'ADDRESS', 'TaskDispatcherPort' )
         
-    defaultErrorLogFile = '/tmp/Taskdispatcher.{port}.err'.format(port=defaultTDPort) 
+    defaultErrorLogFile = '/tmp/Taskdispatcher.{port}.err'
 
     textWidth = 80
     parser = argparse.ArgumentParser(
@@ -58,7 +58,7 @@ if __name__ == '__main__':
                                ['\n']+
                                textwrap.wrap("as a server for a task management system.", width=textWidth) +
                                ['\n']+
-                               textwrap.wrap("By default an error logfile '{fileName}' is created. This can be changed with the option -e.".format(fileName=defaultErrorLogFile), width=textWidth)
+                               textwrap.wrap("By default an error logfile '{fileName}' is created. This can be changed with the option -e.".format(fileName=defaultErrorLogFile.format(port=defaultTDPort) ), width=textWidth)
                                ),
         epilog='Written by Hendrik.')
     
@@ -78,7 +78,7 @@ if __name__ == '__main__':
                         metavar = 'FILE',
                         dest = 'errorLogFileName',
                         default = defaultErrorLogFile,
-                        help = 'Write errors (exceptions) into FILE. Default: {fileName}.'.format(fileName=defaultErrorLogFile )
+                        help = 'Write errors (exceptions) into FILE. Default: {fileName}.'.format(fileName=defaultErrorLogFile.format(port=defaultTDPort)  )
                         )
     parser.add_argument('-P', '--path',
                         metavar = 'PATH',
@@ -91,10 +91,15 @@ if __name__ == '__main__':
 
     # try to open logfile
     try:
-        if os.path.exists(args.errorLogFileName):
-            logfileTDErrors = open(args.errorLogFileName, 'a')
+        # add port to logfile name
+        logfile = args.errorLogFileName.format(port=args.tdPort)
+
+        if os.path.exists(logfile):
+            # append to existing logfile
+            logfileTDErrors = open(logfile, 'a')
         else:
-            logfileTDErrors = open(args.errorLogFileName, 'w')
+            # create new logfile
+            logfileTDErrors = open(logfile, 'w')
     
         logfileTDErrors.write('----------------------\n')
         logfileTDErrors.write("[%s]\n" % str(datetime.now()))
