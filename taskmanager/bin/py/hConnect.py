@@ -42,6 +42,7 @@ libpath  = '%s/lib' % tmpath	# for hSocket
 sys.path.insert(0,libpath)
 
 from hSocket import hSocket
+from hServerProxy import hServerProxy
 from hTaskDispatcherInfo import hTaskDispatcherInfo
 from hTaskManagerServerInfo import hTaskManagerServerInfo
 
@@ -76,6 +77,8 @@ class ValidateHostAndPort(argparse.Action):
 
         # set attribute self.dest with field host and port
         setattr(namespace, self.dest, HostAndPort(host, port))
+        # add another attribute
+        setattr(namespace, "useHostAndPort", True)
 
         
 class ValidateBool(argparse.Action):
@@ -99,7 +102,7 @@ class ValidateVerboseMode(argparse.Action):
         
 if __name__ == '__main__':
     # read default configurations from file
-    #BOCString = True    # begin of submission string
+    
     defaultEOCString = "@@@@"	# end of submission string
 
     textWidth = 80
@@ -107,26 +110,37 @@ if __name__ == '__main__':
         prog="hConnect",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         usage="%(prog)s [-h --help] [options] COMMAND",
-        description='\n'.join( textwrap.wrap("Connect to a server, send the COMMAND to the server and print response to stdout. Unless host and port are specified with option -S, use the following", width=textWidth) +
+        description='\n'.join( textwrap.wrap("Connect to your TaskManagerServer", width=textWidth) +
                                ['\n'] +
-                               textwrap.wrap("  host: {}".format(tdHost), width=textWidth)+
-                               textwrap.wrap("  port: {}".format(tdPort), width=textWidth)
+                               textwrap.wrap("  host: {}".format(tmsHost), width=textWidth) +
+                               textwrap.wrap("  port: {}".format(tmsPort), width=textWidth) +
+                               ['\n'] +
+                               textwrap.wrap("send the COMMAND to it and print response to stdout. If the TMS is not running, a TMS will be started. If you want to connect to the TaskDispatcher", width=textWidth) +
+                               ['\n'] +
+                               textwrap.wrap("  host: {}".format(tdHost), width=textWidth) +
+                               textwrap.wrap("  port: {}".format(tdPort), width=textWidth) +
+                               ['\n'] +
+                               textwrap.wrap("use option -T. If you want to connect to another server, specify host and port with option -S.", width=textWidth)
                                ),
         epilog='Written by Hendrik.')
     parser.add_argument('command',
                         metavar = 'COMMAND',
-                        help = "Command which will be sent to the server." )    
+                        help = "Command which will be sent to the server."
+                        )
+    
     parser.add_argument('-e', '--do_not_use_eocstring',
                         dest = 'useEOCString',
                         action = 'store_false',
                         default = True,
                         help = 'Do not use EOCString. The default EOCString is "{eocs}". This can be changed by option -E.'.format(eocs=defaultEOCString)
                        )
+    
     parser.add_argument('-E', '--eocstring', 
                         dest = "EOCString", 
                         default = defaultEOCString,
                         help = 'Use this EndOfCommunication string if option -e is given.'
                         )
+    
     parser.add_argument('-s', '--use_ssl_connection',
                         dest = 'useSSLConnection',
                         choices = ('True','False'),
@@ -134,22 +148,23 @@ if __name__ == '__main__':
                         default = useSSLConnection,
                         help = 'Use secure socket connection. Default: {v}'.format(v=str(useSSLConnection))
                         )
+    
     parser.add_argument('-S', '--server_settings',
                         nargs = 2,
                         metavar = ('HOST','PORT'),
                         action = ValidateHostAndPort,
                         dest = 'serverSettings',
-                        default = HostAndPort(tdHost,tdPort),
-                        help = 'Connect to server HOST:PORT. Default {h}:{p}'.format(h=tdHost, p=tdPort)
+                        default = HostAndPort(tmsHost,tmsPort),
+                        help = 'Connect to server HOST:PORT. Default {h}:{p}'.format(h=tmsHost, p=tmsPort)
                         )
 
-    if tmsHost and tmsPort:
-        parser.add_argument('-T', '--connect_to_tms',
-                            dest = 'connectToTMS',
-                            action = 'store_true',
-                            default = False,
-                            help = 'Connect to TMS {host}:{port}.'.format(host=tmsHost,port=tmsPort)
-                            )
+    parser.add_argument('-T', '--connect_to_td',
+                        dest = 'connectToTD',
+                        action = 'store_true',
+                        default = False,
+                        help = 'Connect to TaskDispatcher {host}:{port}.'.format(host=tdHost,port=tdPort)
+                        )
+    
     parser.add_argument('-v', '--verbose_mode',
                         nargs = 0,
                         dest = 'verboseMode',
@@ -170,30 +185,43 @@ if __name__ == '__main__':
     ca_certs = None
 
     # set server host and port to which we try to connect
-    if hasattr(args,'connectToTMS') and args.connectToTMS:
-        host = tmsHost
-        port = tmsPort
+    if hasattr(args,'connectToTD') and args.connectToTD:
+        host = tdHost
+        port = tdPort
     else:
         host = args.serverSettings.host
         port = args.serverSettings.port
 
     try:
-        clientSock = hSocket( sslConnection=args.useSSLConnection,
+        if not args.connectToTD and not ( hasattr(args,'useHostAndPort') and args.useHostAndPort ):
+            client = hServerProxy( user = user,
+                                   serverType = 'TMS',
+                                   verboseMode = args.verboseMode )
+
+            client.run()
+
+            if not client.running:
+                sys.stderr.write("Could not start a TMS!\n")
+                sys.exit(-1)
+
+        else:    
+            # create socket
+            client = hSocket( sslConnection=args.useSSLConnection,
                               keyfile = keyfile,
                               certfile = certfile,
                               ca_certs = ca_certs,
                               EOCString = args.EOCString,
                               catchErrors = False)
 
-        clientSock.initSocket( host, port )
+            client.initSocket( host, port )
 
         logger.info( "Connection to {host}:{port}".format( host=host, port=port ) )
 
-        clientSock.send(args.command)
+        client.send(args.command)
 
         logger.info( "Command: {com}".format(com=args.command ))
 
-        receivedStr = clientSock.recv()
+        receivedStr = client.recv()
 
         logger.info( "Received string:")
         
@@ -204,7 +232,8 @@ if __name__ == '__main__':
 
         logger.info("Length of received string: {l}".format(l=len(receivedStr)))
             
-        clientSock.close()
+        if args.connectToTD or ( hasattr(args,'useHostAndPort') and args.useHostAndPort ):
+            client.close()
 
     except socket.error,msg:
         print "ERROR while connecting to %s:%s with error %s" % (host, port, msg)

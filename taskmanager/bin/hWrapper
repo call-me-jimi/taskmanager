@@ -7,4 +7,5 @@ com=`basename $0`
 cd $d/dist && ./$com ${@+"$@"}
 
 # call with python
+#source $d/../../.taskmanagerrc
 #python $d/py/$com.py ${@+"$@"}
