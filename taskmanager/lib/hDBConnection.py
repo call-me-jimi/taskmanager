@@ -1,7 +1,7 @@
 import os
 import sys
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 # get path to taskmanager. it is assumed that this script is in the bin directory of
@@ -15,10 +15,10 @@ varpath = '%s/var' % tmpath
 sys.path.insert(0,libpath)
 
 #from hDatabase import Base
-from hDBSessionMaker import DBSession
+from hDBSessionMaker import hDBSessionMaker
 
 class hDBConnection( object ):
-    def __init__( self ):
+    def __init__( self, echo=False ):
         ### Create an engine that stores data in the local directory's
         ### sqlalchemy_example.db file.
         ###engine = create_engine( 'sqlite:///{varpath}/taskDispatcher.db'.format(varpath=varpath), echo=False )
@@ -36,7 +36,8 @@ class hDBConnection( object ):
         ### session.commit(). If you're not happy about the changes, you can
         ### revert all of them back to the last commit by calling
         ### session.rollback()
-        self.session = DBSession()
+        self.dbSessionMaker = hDBSessionMaker( echo=echo )
+        self.session = self.dbSessionMaker.DBSession()
 
         ##### @var ScopedSession
         ####The session that represents the connection to the database
@@ -100,5 +101,19 @@ class hDBConnection( object ):
         """! @brief tell registry to dispose of session
         """
         
-        DBSession.remove()
+        self.dbSessionMaker.DBSession.remove()
         
+    def create_all_tables( self ):
+        """! brief This will not re-create tables that already exist
+        """
+        
+        from hDatabase import Base
+        Base.metadata.create_all( self.dbSessionMaker.engine )
+
+    def drop_all_tables( self ):
+        """! brief This will really drop all tables including their contents."""
+
+        meta = MetaData( self.dbSessionMaker.engine )
+        meta.reflect()
+        meta.drop_all()
+

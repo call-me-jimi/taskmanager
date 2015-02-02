@@ -70,7 +70,8 @@ class Priority( Base ):
 
 ## @brief Job
 #
-# backrefs: job_history --> JobHistory
+# backrefs: job_details --> JobDetails
+#           job_history --> JobHistory
 #           excluded_hosts --> Host
 class Job( Base ):
     __tablename__ = 'job'
@@ -93,7 +94,7 @@ class Job( Base ):
     estimated_memory = Column( Float )
     
     user = relationship( 'User' )
-    job_details = relationship( 'JobDetails', uselist=False, backref='job', cascade="all, delete-orphan" )
+    #job_details = relationship( 'JobDetails', uselist=False, backref="job", cascade="all, delete, delete-orphan" )
     priority = relationship( 'Priority' )
     
     def __repr__( self ):
@@ -101,7 +102,6 @@ class Job( Base ):
 
 ## @brief JobDetails
 #
-# backref: job --> Job
 class JobDetails( Base ):
     __tablename__ = 'job_details'
 
@@ -113,6 +113,7 @@ class JobDetails( Base ):
     pid = Column( Integer )
     return_code = Column( Integer )
 
+    job = relationship( 'Job', uselist=False, single_parent=True, backref=backref("job_details", cascade="all, delete, delete-orphan", uselist=False, single_parent=True ) )
     job_status = relationship( 'JobStatus', uselist=False )
     host = relationship( 'Host' )
 
@@ -128,7 +129,7 @@ class JobHistory( Base ):
     job_status_id = Column( Integer, ForeignKey( 'job_status.id' ), nullable=False )
     checked  = Column( Boolean, default=False )
     
-    job = relationship( 'Job', backref=backref("job_history", cascade="all, delete-orphan") )
+    job = relationship( 'Job', uselist=False, single_parent=True, backref=backref("job_history", cascade="all, delete, delete-orphan") )
     job_status = relationship( 'JobStatus' )
                      
 class WaitingJob( Base ):
