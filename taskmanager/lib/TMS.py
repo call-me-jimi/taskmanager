@@ -1325,6 +1325,7 @@ class TaskManagerServerProcessor(object):
 
             user = self.TMS.info['user']
             command = jsonInObj['command']
+            slots = jsonInObj['slots']
             shell = jsonInObj['shell']
             infoText = jsonInObj.get('infoText','')
             group = jsonInObj.get('group','')
@@ -1345,6 +1346,7 @@ class TaskManagerServerProcessor(object):
                             'infoText': infoText,
                             'group': group,
                             'command': command,
+                            'slots': slots,
                             'shell': shell,
                             'stdout': stdout,
                             'stderr': stderr,

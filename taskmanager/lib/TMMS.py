@@ -7,6 +7,7 @@ import re
 import subprocess
 import pwd
 import sys
+import shutil
 import getopt
 from datetime import datetime
 from time import time, strftime,sleep
@@ -404,23 +405,20 @@ class TaskManagerMenialServerProcessor:
                 job = dbconnection.query( db.Job ).get( jobID )
 
                 command = job.command
-                stdout = job.stdout
-                stderr = job.stderr
-                logFile = job.logfile
                 shell = job.shell
 
-                # create temporary file object for command which is executed
-                fCom = tempfile.NamedTemporaryFile(prefix="tmms.",bufsize=0,delete=False)
-                fCom.write("%s\n" % command)
-                fCom.close()
+                ### create temporary file object for command which is executed
+                ##fCom = tempfile.NamedTemporaryFile(prefix="tmms.",bufsize=0,delete=False)
+                ##fCom.write("%s\n" % command)
+                ##fCom.close()
 
                 # create temporary file object for stdout and stderr of executing command
-                fOut = tempfile.NamedTemporaryFile(prefix="tmms.",bufsize=0,delete=False)
-                fErr = tempfile.NamedTemporaryFile(prefix="tmms.",bufsize=0,delete=False)
+                fOut = tempfile.NamedTemporaryFile(prefix="tmms.", bufsize=0, delete=True)
+                fErr = tempfile.NamedTemporaryFile(prefix="tmms.", bufsize=0, delete=True)
 
                 startTime = datetime.now()
 
-                self.message('[{th}] [job {j}] job has been started at {t}'.format(th=threadName,j=jobID,t=str(startTime)),TMMS)
+                self.message('[{th}] [job: {j}] job has been started at {t}'.format(th=threadName,j=jobID,t=str(startTime)),TMMS)
 
                 ###############################
                 # execute job in a subprocess #
@@ -431,21 +429,21 @@ class TaskManagerMenialServerProcessor:
                                       stdout=fOut,
                                       stderr=fErr)
 
-                # tell server that job has been started
-                clientSock = hSocket(host=self.host,
-                                     port=self.port,
-                                     EOCString=self.EOCString,
-                                     sslConnection=self.sslConnection,
-                                     certfile=certfile,
-                                     keyfile=keyfile,
-                                     ca_certs=ca_certs,
-                                     catchErrors=False)
-
-                clientSock.send("jobstarted:{jobID}".format(jobID=jobID))
-                clientSock.close()
+                ### tell server that job has been started
+                ##clientSock = hSocket(host=self.host,
+                ##                     port=self.port,
+                ##                     EOCString=self.EOCString,
+                ##                     sslConnection=self.sslConnection,
+                ##                     certfile=certfile,
+                ##                     keyfile=keyfile,
+                ##                     ca_certs=ca_certs,
+                ##                     catchErrors=False)
+                ##
+                ##clientSock.send("jobstarted:{jobID}".format(jobID=jobID))
+                ##clientSock.close()
 
                 # store info about running job in database
-
+                
                 # set job as running
                 dbconnection.query( db.JobDetails.job_id ).\
                   filter( db.JobDetails.job_id==jobID ).\
@@ -460,62 +458,88 @@ class TaskManagerMenialServerProcessor:
 
                 dbconnection.introduce( jobHistory )
                 dbconnection.commit()
+                
 
                 ###################################
                 # wait until process has finished #
                 sp.wait()
+                ###################################
 
                 endTime = datetime.now()
 
-                self.message('[{th}] [{j}] job has been finished at {t}'.format(th=threadName,j=jobID,t=str(endTime)),TMMS)
+                self.message('[{th}] [job: {j}] job has been finished at {t}'.format(th=threadName,j=jobID,t=str(endTime)),TMMS)
 
                 ##################################################
-                # write command, stdout, and stderr to a logfile #
-                if logFile:
+                # write command, stdout, and stderr to a files   #
+
+                if job.stdout:
+                    # copy temporary file for stdout
                     try:
-                        f = open('%s' % logFile,'w')
+                        shutil.copyfile( fOut.name, job.stdout )
+                    except:
+                        # error while opening or writing file
+                        # what to do??
+                        pass
 
-                        f.write("-----------------------\n")
-                        f.write("--------command--------\n")
-                        f.write("-----------------------\n")
-                        f.write("%s\n" %command)
-                        f.write("\n")
-                        f.write("-----------------------\n")
-                        f.write("----------info---------\n")
-                        f.write("-----------------------\n")
-                        f.write("host: {0}\n".format(os.uname()[1]))
-                        f.write("started: %s\n" % (startTime))
-                        f.write("finished: %s\n" % (endTime))
-                        f.write("\n")
+                if job.stderr:
+                    # copy temporary file for stderr
+                    try:
+                        shutil.copyfile( fErr.name, job.stderr )
+                    except:
+                        # error while opening or writing file
+                        # what to do??
+                        pass
 
-                        f.write("-----------------------\n")
-                        f.write("------BEGIN stdout-----\n")
-                        f.write("-----------------------\n")
+                if job.logfile:
+                    # write
+                    try:
+                        # write logfile
+                        with open(job.logfile, 'w') as f:
 
-                        fOut.seek(0)
+                            f.write("-----------------------\n")
+                            f.write("--------command--------\n")
+                            f.write("-----------------------\n")
+                            
+                            f.write("%s\n" %command)
+                            f.write("\n")
+                            
+                            f.write("-----------------------\n")
+                            f.write("----------info---------\n")
+                            f.write("-----------------------\n")
+                            
+                            f.write("host: {0}\n".format(os.uname()[1]))
+                            f.write("started: %s\n" % (startTime))
+                            f.write("finished: %s\n" % (endTime))
+                            f.write("running time: %s\n" % (endTime-startTime) )
+                            f.write("\n")
 
-                        for line in fOut:
-                            f.write("%s" % line)
+                            f.write("-----------------------\n")
+                            f.write("------BEGIN stdout-----\n")
+                            f.write("-----------------------\n")
 
-                        f.write("-----------------------\n")
-                        f.write("------END stdout-------\n")
-                        f.write("-----------------------\n")
+                            fOut.seek(0)
 
-                        f.write("\n")
+                            for line in fOut:
+                                f.write("%s" % line)
 
-                        f.write("-----------------------\n")
-                        f.write("------BEGIN stderr-----\n")
-                        f.write("-----------------------\n")
+                            f.write("-----------------------\n")
+                            f.write("------END stdout-------\n")
+                            f.write("-----------------------\n")
 
-                        fErr.seek(0)
-                        for line in fErr:
-                            f.write("%s" % line)
+                            f.write("\n")
 
-                        f.write("-----------------------\n")
-                        f.write("------END stderr-------\n")
-                        f.write("-----------------------\n")
+                            f.write("-----------------------\n")
+                            f.write("------BEGIN stderr-----\n")
+                            f.write("-----------------------\n")
 
-                        f.close()
+                            fErr.seek(0)
+                            for line in fErr:
+                                f.write("%s" % line)
+
+                            f.write("-----------------------\n")
+                            f.write("------END stderr-------\n")
+                            f.write("-----------------------\n")
+
                     except:
                         # error while opening or writing file
                         # what to do??
