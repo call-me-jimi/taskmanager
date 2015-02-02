@@ -43,7 +43,11 @@ In order to install the TaskManager please follow the configuation steps:
 # change to your Taskmanager path (set environmental variable)
 cd <YOUR_TASKMANAGER_PATH>
 
-# create virtual environment
+# create virtual environment, install mysql client and create file which has to be sourced in order
+# to use this application 
+make
+
+# activate virtual environment (environmental variables TASKMANAGERPATH and TASKMANAGER_VE_PATH will be set)
 virtualenv taskmanagerVE
 
 # create source file
@@ -52,23 +56,7 @@ make
 # activate virtual environment (environmental variables TASKMANAGERPATH and TASKMANAGER_VE_PATH will be set)
 source .taskmanagerrc
 
-# install mysql (for python package MySQLdb)
-cd $TASKMANAGER_VE_PATH
-mkdir src
-cd src
-wget http://dev.mysql.com/get/Downloads/MySQL-5.6/mysql-5.6.22.tar.gz
-tar xzvf mysql-5.6.22.tar.gz
-cd mysql-5.6.22
-cmake .
-make -j 6 install DESTDIR=${TASKMANAGER_VE_PATH}/usr/mysql-5.6.22
-cd ${TASKMANAGER_VE_PATH}/usr/mysql-5.6.22
-mv usr/local/mysql/* .
-rm -rf usr
-ln -s ${TASKMANAGER_VE_PATH}/usr/mysql-5.6.22/bin/* ${TASKMANAGER_VE_PATH}/bin/
-
-
-
-# install packages
+# install python packages
 pip install -r requirements.txt
 
 
