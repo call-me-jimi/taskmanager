@@ -1,0 +1,6 @@
+short_name	full_name	number_slots	max_number_occupied_slots	additional_info	allow_info_server	info_server_port	active
+compute01	compute01	64	64	compute node	False	22222	True
+compute02	compute02	64	60	compute node	False	22222	True
+compute04	compute04	64	64	compute node	False	22222	True
+compute05	compute05	64	64	compute node	False	22222	True
+workstation04	workstation04	8	3	workstation hendrik	False	22222	True
