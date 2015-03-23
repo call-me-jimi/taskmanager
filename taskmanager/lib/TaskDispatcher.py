@@ -1185,6 +1185,9 @@ class TaskDispatcherRequestProcessor(object):
         self.commands["LSUSERS"] = hCommand( command_name = "lsusers",
                                                  regExp = "^lsusers$",
                                                  help = "show all users.")
+        self.commands["LSUSER"] = hCommand( command_name = "lsuser",
+                                                 regExp = "^lsusers:(.*)$",
+                                                 help = "show details about user.")
         self.commands["SETINTERVALCHECKTD"] = hCommand( command_name = "setintervalchecktd",
                                                  arguments = "<TIME>",
                                                  regExp = "^setintervalchecktd:(.*)",
@@ -2100,7 +2103,6 @@ class TaskDispatcherRequestProcessor(object):
 
             try:
                 userInstance = dbconnection.query( db.User ).filter( db.User.name==user ).one()
-                print userInstance
 
                 counts = dict( dbconnection.query( db.Host.id, func.sum( db.Job.slots ) ).\
                                join( db.JobDetails, db.JobDetails.host_id==db.Host.id ).\

@@ -2,6 +2,8 @@ import textwrap
 from threading import Thread
 import os
 import re
+import sys
+import traceback
 import socket
 import datetime
 import tempfile
@@ -234,7 +236,7 @@ class hHostLoad(Thread):
                 if not sp.returncode and len(out)>0:
                     load = map(float, out[0].strip('\n').split(" ")[:3] )
             except:
-                print "ERROR"
+                traceback.print_exc(file=sys.stdout)
                 pass
 
         return load

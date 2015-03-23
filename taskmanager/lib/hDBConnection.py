@@ -14,8 +14,12 @@ varpath = '%s/var' % tmpath
 # include lib path of the TaskManager package to sys.path for loading TaskManager packages
 sys.path.insert(0,libpath)
 
-#from hDatabase import Base
-from hDBSessionMaker import hDBSessionMaker
+##from hDBSessionMaker import hDBSessionMaker
+import hDBSessionRegistry
+
+DBSession = hDBSessionRegistry.DBSession
+engine = hDBSessionRegistry.engine
+
 
 class hDBConnection( object ):
     def __init__( self, echo=False ):
@@ -36,9 +40,10 @@ class hDBConnection( object ):
         ### session.commit(). If you're not happy about the changes, you can
         ### revert all of them back to the last commit by calling
         ### session.rollback()
-        self.dbSessionMaker = hDBSessionMaker( echo=echo )
-        self.session = self.dbSessionMaker.DBSession()
-
+        #self.dbSessionMaker = hDBSessionMaker( echo=echo )
+        #self.session = self.dbSessionMaker.DBSession()
+        self.session = DBSession()
+        
         ##### @var ScopedSession
         ####The session that represents the connection to the database
         ###if not scopedSession:
@@ -101,19 +106,22 @@ class hDBConnection( object ):
         """! @brief tell registry to dispose of session
         """
         
-        self.dbSessionMaker.DBSession.remove()
+        #self.dbSessionMaker.DBSession.remove()
+        DBSession.remove()
         
     def create_all_tables( self ):
         """! brief This will not re-create tables that already exist
         """
         
         from hDatabase import Base
-        Base.metadata.create_all( self.dbSessionMaker.engine )
+        #Base.metadata.create_all( self.dbSessionMaker.engine )
+        Base.metadata.create_all( engine )
 
     def drop_all_tables( self ):
         """! brief This will really drop all tables including their contents."""
 
-        meta = MetaData( self.dbSessionMaker.engine )
+        #meta = MetaData( self.dbSessionMaker.engine )
+        meta = MetaData( engine )
         meta.reflect()
         meta.drop_all()
 
