@@ -1,6 +1,5 @@
 
 import socket
-import ssl
 import select
 import re
 import subprocess
