@@ -120,7 +120,6 @@ def init_db( e=None ):
     This is equivalent to 'CREATE TABLE' statements in raw SQL.
     """
     
-    from DB import Base
     Base.metadata.create_all( bind=e if e else engine )
 
 

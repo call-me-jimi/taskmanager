@@ -42,6 +42,7 @@ f.addScript("bin/py/hConnect.py")
 f.addScript("bin/py/hRunTMS.py")
 f.addScript("bin/py/hRunTMMS.py")
 f.addScript("bin/py/hRunTaskDispatcher.py")
+f.addScript("bin/py/hAdminDatabase.py")
 
 ## starts the freezing process
 f()
