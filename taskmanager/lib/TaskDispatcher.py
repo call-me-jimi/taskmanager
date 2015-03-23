@@ -1890,8 +1890,11 @@ class TaskDispatcherRequestProcessor(object):
                     else: s=""
                     
                     response += "{s:>20} : [{t}] {status}\n".format(s=s, t=str(hist.datetime), status=hist.job_status.name )
-                    
-                response += "{s:>20} : {value}\n".format(s="host", value=job.job_details.host.short_name )
+
+                try:
+                    response += "{s:>20} : {value}\n".format(s="host", value=job.job_details.host.short_name )
+                except:
+                    response += "{s:>20} : {value}\n".format(s="host", value="None" )
                 response += "{s:>20} : {value}\n".format(s="pid", value=job.job_details.pid )
                 response += "{s:>20} : {value}\n".format(s="return code", value=job.job_details.return_code )
 
