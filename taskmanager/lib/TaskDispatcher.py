@@ -833,7 +833,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             #timeLogger.log( "... found {n}".format(n=len(finishedJobs) ) )
 
             if finishedJobs:
-                loggerWrapper.write( "{n} finished job{s}.".format(n=len(finishedJobs), s='s' if len(finishedJobs)>1 else '' ) )
+                loggerWrapper.write( "{n} finished job{s}.".format(n=len(finishedJobs), s='s' if len(finishedJobs)>1 else '' ), logCategory='checkingJobs' )
 
             taskDispatcherDetails.last_job_status_update = datetime.now()
 
@@ -852,7 +852,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             #        jobHistory.checked = True
             for finishedJob in finishedJobs:
                 job = finishedJob.job
-                loggerWrapper.write( "   Job [{j}] has finished. Free occupied slots on host.".format(j=job.id ) )
+                loggerWrapper.write( "   Job [{j}] has finished. Free occupied slots on host.".format(j=job.id ), logCategory='checkingJobs' )
 
                 occupiedSlots[ job.job_details.host_id ] += job.slots
 
