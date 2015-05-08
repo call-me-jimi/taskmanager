@@ -115,9 +115,9 @@ class hSocket( object ):
                         # probably socket has been closed
                         break
                     elif m.search(self.receivedStr+s):
-                        # end-of-communication-string
-                        s = s.replace(self.EOCString,"")
+                        #s = s.replace(self.EOCString,"")
                         self.receivedStr += s
+                        self.receivedStr = m.sub("",self.receivedStr)
                         break
 
                     self.receivedStr += s
