@@ -56,10 +56,6 @@ make
 # activate virtual environment (environmental variables TASKMANAGERPATH and TASKMANAGER_VE_PATH will be set)
 source .taskmanagerrc
 
-# install python packages
-pip install -r requirements.txt
-
-
 ## Install mysql server
 cd $TASKMANAGERPATH
 make sql
@@ -87,7 +83,7 @@ mysql> DROP USER ''@'localhost';
 mysql> DROP USER ''@'<YOUR HOST>';
 
 # create user
-mysql> CREATE USER 'tmadmin'@'%' IDENTIFIED BY 'mYsqLTmdB';
+mysql> CREATE USER 'tmadmin'@'%' IDENTIFIED BY 'mYsqLTmdB ';
 
 # create database
 mysql> CREATE DATABASE IF NOT EXISTS taskmanagerdb;
@@ -98,6 +94,11 @@ bin/mysqladmin --defaults-file=$MYSQL_INSTANCE/taskmanagerdb.cnf -u root -p shut
 
 # connect as tmadmin to mysql server
 bin/mysql --host=localhost --port=2114 --database=taskmanagerdb --user=tmadmin -p
+
+
+# install python packages
+export PATH=$PATH:$MYSQL_INSTANCE/bin
+pip install -r requirements.txt
 
 
 

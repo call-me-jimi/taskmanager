@@ -9,14 +9,21 @@ import datetime
 import tempfile
 import subprocess
 
-def renderHelp(commandNames,commandsList):
-    """! @brief format help for output. loop over each name in commandNames and add formatted help to list"""
+def renderHelp(commandNames, commands):
+    """! @brief format help for output. loop over each name in commandNames and add formatted help to list
+
+    @param commands
+    @param commadsList
+
+    @return
+    """
     h = []	# help list for output
 
     for com in commandNames:
-        if com not in commandNames: next
+        if com not in commandNames:
+            next
 
-        c = commandsList[com]
+        c = commands[ com ]
 
         # commmand itself
         l = "    "+c.command_name
