@@ -56,10 +56,49 @@ make
 # activate virtual environment (environmental variables TASKMANAGERPATH and TASKMANAGER_VE_PATH will be set)
 source .taskmanagerrc
 
+## Install mysql server
+cd $TASKMANAGERPATH
+make sql
+
+## create database
+cd $MYSQL_INSTANCE
+scripts/mysql_install_db --defaults-file=$MYSQL_INSTANCE/taskmanagerdb.cnf
+
+## start server
+bin/mysqld_safe --defaults-file=$MYSQL_INSTANCE/taskmanagerdb.cnf
+
+# password
+root:mYSqlTmdB
+tmadmin:mYsqLTmdB
+
+## create password for root
+bin/mysqladmin --defaults-file=$MYSQL_INSTANCE/taskmanagerdb.cnf -u root password 'mYSqlTmdB'
+
+# connect to database (on database01)
+bin/mysql --defaults-file=$MYSQL_INSTANCE/taskmanagerdb.cnf --user=root -p
+
+# drop anonymous user in able to connect with bin/mysql --host=<HOST> --port=<PORT> --user=<USER> --database=<DATABASE> -p
+# see: http://stackoverflow.com/questions/10299148/mysql-error-1045-28000-access-denied-for-user-billlocalhost-using-passw
+mysql> DROP USER ''@'localhost';
+mysql> DROP USER ''@'<YOUR HOST>';
+
+# create user
+mysql> CREATE USER 'tmadmin'@'%' IDENTIFIED BY 'mYsqLTmdB ';
+
+# create database
+mysql> CREATE DATABASE IF NOT EXISTS taskmanagerdb;
+mysql> GRANT ALL PRIVILEGES ON taskmanagerdb.* TO 'tmadmin'@'%' WITH GRANT OPTION;
+
+# stop server
+bin/mysqladmin --defaults-file=$MYSQL_INSTANCE/taskmanagerdb.cnf -u root -p shutdown
+
+# connect as tmadmin to mysql server
+bin/mysql --host=localhost --port=2114 --database=taskmanagerdb --user=tmadmin -p
+
+
 # install python packages
+export PATH=$PATH:$MYSQL_INSTANCE/bin
 pip install -r requirements.txt
-
-
 
 
 

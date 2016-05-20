@@ -173,25 +173,34 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         ## periodically ping td in an own thread
         l0 = threading.Thread( target=self.loopCheckTD )
         l0.setDaemon( True )
-        l0.setName( "Thread: loopCheckTD" )
+        l0.setName( "(loop) loopCheckTD" )
+        l0.date = datetime.now()
+        l0.description = "periodically pinging taskdispatcher"
         l0.start()
         
         ## print periodically status of taskmanager in an own thread
         l1 = threading.Thread( target=self.loopPrintStatus )
         l1.setDaemon( True )
-        l1.setName( "Thread: loopPrintStatus" )
+        l1.setName( "(loop) loopPrintStatus" )
+        l1.date = datetime.now()
+        l1.description = "periodically printing status of taskdispatcher"
         l1.start()
 
         ## update periodically load of hosts
         l2 = threading.Thread( target=self.loopUpdateHostLoad )
         l2.setDaemon( True )
-        l2.setName( "Thread: loopUpdateHostLoad" )
+        l2.setName( "(loop) loopUpdateHostLoad" )
+        l2.date = datetime.now()
+        l2.description = "periodically updating load of hosts"
         l2.start()
         
         ## update periodically check finished jobs
         l3 = threading.Thread( target=self.loopCheckFinishedJobs )
         l3.setDaemon( True )
-        l3.setName( "Thread: loopCheckFinishedJobs" )
+        l3.setName( "(loop) loopCheckFinishedJobs" )
+        l3.date = datetime.now()
+        l3.description = "periodically checking finished jobs"
+        
         l3.start()
         
         while True:
@@ -934,6 +943,10 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
     def __init__(self, request, clientAddress, TD):
         self.TD = TD
         self.currThread = threading.currentThread()
+
+        # add instance attributes
+        self.currThread.description = ""
+        self.currThread.date = datetime.now()
         
         SocketServer.BaseRequestHandler.__init__(self, request, clientAddress, self.TD)
 
@@ -954,16 +967,20 @@ class TaskDispatcherRequestHandler(SocketServer.BaseRequestHandler):
             logger.warn( "Timeout while reading from socket. Skip" )
             return
 
-        self.currThread.setName( "Thread [{t}]: {s}{dots}".format(t=str(datetime.now()),
-                                                                  s=receivedStr[:10],
-                                                                  dots="..." if len(receivedStr[:10])==10 else "" ) )
+        #self.currThread.setName( "Thread [{t}]: {s}{dots}".format(t=str(datetime.now()),
+        #                                                          s=receivedStr[:30],
+        #                                                          dots="..." if len(receivedStr[:30])==30 else "" ) )
+        self.currThread.setName( "(command) {s}{dots}".format(t=str(datetime.now()),
+                                                                  s=receivedStr[:30],
+                                                                  dots="..." if len(receivedStr[:30])==30 else "" ) )
+        self.currThread.description = receivedStr
                                      
         
         if receivedStr!="check":
             loggerWrapper.write( "NEW REQUEST: {r1}{dots}{r2}".format(t=str(datetime.now()),
-                                                              r1=receivedStr[:40] if len(receivedStr)>80 else receivedStr,
-                                                              dots="..." if len(receivedStr)>80 else "",
-                                                              r2=receivedStr[-40:] if len(receivedStr)>80 else "" ) )
+                                                                      r1=receivedStr[:40] if len(receivedStr)>80 else receivedStr,
+                                                                      dots="..." if len(receivedStr)>80 else "",
+                                                                      r2=receivedStr[-40:] if len(receivedStr)>80 else "" ) )
 
         t1 = datetime.now()
         
@@ -1143,18 +1160,23 @@ class TaskDispatcherRequestProcessor(object):
         self.commands["HELP"] = hCommand( command_name = "help",
                                           regExp = "^help$",
                                           help = "return help")
-        self.commands["FULLHELP"] = hCommand( command_name = "fullhelp",
-                                              regExp = "^fullhelp$",
-                                              help = "return full help")
+        self.commands["TOPICHELP"] = hCommand( command_name = "help",
+                                               arguments = "<TOPIC>",
+                                               regExp = "^help:(.*)",
+                                               help = "return help about topic")
         self.commands["LSTHREADS"] = hCommand(command_name = "lsthreads",
-                                            regExp = "^lsthreads$",
-                                            help = "return list of active threads")
+                                              regExp = "^lsthreads$",
+                                              help = "return list of active threads")
+        self.commands["LSTHREAD"] = hCommand(command_name = "lsthread",
+                                             regExp = "^lsthread:(.*)",
+                                             arguments = '<THREAD NAME>',
+                                             help = "return details of thread with specified name (see lsthread)")
         self.commands["LOADLOGGERCONFIG"] = hCommand( command_name = "loadloggerconfig",
                                                       regExp = "^loadloggerconfig$",
                                                       help = "load logger config")
-        self.commands["PRINTSTATUS"] = hCommand( command_name = "printstatus",
-                                          regExp = "^printstatus$",
-                                          help = "print status to stdout")
+        self.commands["STATUS"] = hCommand( command_name = "status",
+                                            regExp = "^status$",
+                                            help = "get status of taskmanager")
         self.commands["ACTIVATECLUSTER"] = hCommand( command_name = "activatecluster",
                                                      regExp = "^activatecluster$",
                                                      help = "activate cluster")
@@ -1185,12 +1207,13 @@ class TaskDispatcherRequestProcessor(object):
                                                  regExp = "^lsusers$",
                                                  help = "show all users.")
         self.commands["LSUSER"] = hCommand( command_name = "lsuser",
-                                                 regExp = "^lsusers:(.*)$",
-                                                 help = "show details about user.")
+                                            arguments = "<USER NAME>",
+                                            regExp = "^lsusers:(.*)$",
+                                            help = "show details about user.")
         self.commands["SETINTERVALCHECKTD"] = hCommand( command_name = "setintervalchecktd",
-                                                 arguments = "<TIME>",
-                                                 regExp = "^setintervalchecktd:(.*)",
-                                                 help = "set interval in seconds for loop pinging TaskDispatcher")
+                                                        arguments = "<TIME>",
+                                                        regExp = "^setintervalchecktd:(.*)",
+                                                        help = "set interval in seconds for loop pinging TaskDispatcher")
         self.commands["SETINTERVALPRINTSTATUS"] = hCommand( command_name = "setintervalprintstatus",
                                                  arguments = "<TIME>",
                                                  regExp = "^setintervalprintstatus:(.*)",
@@ -1307,7 +1330,7 @@ class TaskDispatcherRequestProcessor(object):
         if self.commands["CHECK"].re.match(requestStr):
             request.send("checked")
             
-        elif self.commands["FULLHELP"].re.match(requestStr):
+        elif self.commands["HELP"].re.match(requestStr):
             help = []
             help.append( "Commands known by the TaskDispatcher:" )
             # iterate over all commands defined in self.commands
@@ -1321,9 +1344,31 @@ class TaskDispatcherRequestProcessor(object):
             
         #  get list of active threads
         elif self.commands["LSTHREADS"].re.match(requestStr):
-            request.send(join(map(lambda t: t.getName(),threading.enumerate()),"\n"))
+            threadList = [ "{idx:3d} - {name}".format(idx=idx,name=t.getName()) for idx,t in enumerate(threading.enumerate() ) ]
+            request.send( '\n'.join( threadList ) )
+            
+        elif self.commands["LSTHREAD"].re.match(requestStr):
+            c = self.commands["LSTHREAD"]
+            
+            threadName = c.re.match( requestStr ).groups()[0]
+            
+            try:
+                thread = next( t for t in threading.enumerate() if t.getName()==threadName )
+            except StopIteration:
+                # not found
+                return ""
 
-        elif self.commands["PRINTSTATUS"].re.match( requestStr ):
+            response = "Thread details\n"
+            response += "----------------------\n"
+            response += "{s:>20} : {value}\n".format(s="name", value=thread.getName() )
+            response += "{s:>20} : {value}\n".format(s="description", value=thread.description )
+            response += "{s:>20} : {value}\n".format(s="started at", value=str(thread.date) )
+            response += "{s:>20} : {value}\n".format(s="running since", value=str(datetime.now()-thread.date) )
+
+            request.send( response )
+            
+
+        elif self.commands["STATUS"].re.match( requestStr ):
             status = TD.printStatus( returnString=True )
 
             request.send( status )

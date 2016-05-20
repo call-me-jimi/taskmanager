@@ -1,7 +1,7 @@
 TASKMANAGERPATH=$(shell pwd)
 VE_PATH=$(TASKMANAGERPATH)/taskmanagerVE
 
-all: ve rc sql
+all: ve rc
 
 ve:
 	virtualenv taskmanagerVE
@@ -18,17 +18,14 @@ rc:
 
 sql:
 	# install mysql (required by python package MySQLdb)
-	cd $(VE_PATH); \
-	mkdir -p src; \
-	cd src; \
-	wget http://dev.mysql.com/get/Downloads/MySQL-5.6/mysql-5.6.22.tar.gz; \
-	tar xzvf mysql-5.6.22.tar.gz; \
-	cd mysql-5.6.22; \
-	cmake .; \
-	make -j 6 install DESTDIR=$(VE_PATH)/usr/mysql-5.6.22; \
-	cd $(VE_PATH)/usr/mysql-5.6.22; \
-	mv usr/local/mysql/* . ;\
-	rm -rf usr; \
-	ln -s $(VE_PATH)/usr/mysql-5.6.22/bin/* $(VE_PATH)/bin/
+	cd $(VE_PATH) && \
+	mkdir -p src && \
+	cd src && \
+	wget http://dev.mysql.com/get/Downloads/MySQL-5.6/mysql-5.6.22.tar.gz && \
+	tar xzvf mysql-5.6.22.tar.gz && \
+	cd mysql-5.6.22 && \
+	cmake -DCMAKE_INSTALL_PREFIX=$(VE_PATH)/usr/mysql-5.6.22-taskmanagerdb && \
+	make -j 2 install && \
+	sed "s:{mysqlpath}:$(VE_PATH)/usr/mysql-5.6.22-taskmanagerdb:" $(TASKMANAGERPATH)/taskmanagerdb.cnf > $(VE_PATH)/usr/mysql-5.6.22-taskmanagerdb/taskmanagerdb.cnf
 
-.PHONY: all
+.PHONY: all rc ve sql
