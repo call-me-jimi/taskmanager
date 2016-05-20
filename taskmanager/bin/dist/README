@@ -1,8 +1,0 @@
-TaskManager - bin/dist directory
-
-This directory contains freezed versions of python programs. Call
-
-  scripts/mkDist.py
-
-in the root directory of TaskManager in order to create freezed versions. Adjust each wrapper script
-in the bin directory.
