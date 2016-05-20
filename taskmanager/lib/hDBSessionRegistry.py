@@ -79,8 +79,8 @@ def get_engine( echo=False ):
                                                                                                     host=databaseHost,
                                                                                                     port=databasePort,
                                                                                                     name=databaseName), 
-                                       pool_size=50, # number of connections to keep open inside the connection pool
-                                       max_overflow=500, # number of connections to allow in connection pool "overflow", that is connections that can be opened above and beyond the pool_size setting, which defaults to five.
+                                       pool_size=10, # number of connections to keep open inside the connection pool
+                                       max_overflow=100, # number of connections to allow in connection pool "overflow", that is connections that can be opened above and beyond the pool_size setting, which defaults to five.
                                        pool_recycle=3600, # this setting causes the pool to recycle connections after the given number of seconds has passed. 
                                        echo=echo )
     return engine

@@ -6,7 +6,7 @@ all: ve rc sql
 ve:
 	virtualenv taskmanagerVE
 
-re:
+rc:
 	# generate a source file
 	# necessary enironmental variables are set within this source files
 	echo 'export TASKMANAGERPATH=$(TASKMANAGERPATH)/taskmanager'  > .taskmanagerrc

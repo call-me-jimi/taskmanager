@@ -794,7 +794,7 @@ class TaskDispatcher(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
                 excludedHosts.add( host.full_name )
                 return self.getVacantHost( slots, excludedHosts=excludedHosts )
             
-            if hostLoad.loadavg_1min <= host.max_number_occupied_slots:
+            if hostLoad.loadavg_1min + slots <= host.number_slots:
                 loggerWrapper.write( "  ... {h} is vacant. load is {l}. ok.".format(h=host.full_name,l=hostLoad.loadavg_1min) )
                 return (host.id,host.full_name)
             else:
